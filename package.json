@@ -1,0 +1,27 @@
+{
+  "name": "@filepad/agent-access-public-repo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Public Agent Access SDK and MCP server packages for Filepad.",
+  "packageManager": "pnpm@10.23.0",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "typecheck:agent-sdk": "pnpm -C packages/agent-access-sdk typecheck",
+    "typecheck:mcp": "pnpm -C packages/agent-access-sdk build && pnpm -C packages/mcp-server typecheck",
+    "test:sdk": "pnpm -C packages/agent-access-sdk test",
+    "test:mcp": "pnpm -C packages/agent-access-sdk build && pnpm -C packages/mcp-server test",
+    "check:agent-public-boundary": "node scripts/ci/check-agent-public-boundary.mjs",
+    "pack:check:sdk": "pnpm -C packages/agent-access-sdk pack:check",
+    "pack:check:mcp": "pnpm -C packages/mcp-server pack:check",
+    "pack:check": "pnpm -C packages/agent-access-sdk build && pnpm -C packages/mcp-server build && pnpm pack:check:sdk && pnpm pack:check:mcp",
+    "proof:clean-install": "node scripts/agent-access/clean-install-proof.mjs",
+    "proof:mcp": "node scripts/agent-access/mcp-proof.mjs",
+    "validate:agent-access": "pnpm check:agent-public-boundary && pnpm typecheck:agent-sdk && pnpm test:sdk && pnpm typecheck:mcp && pnpm test:mcp",
+    "validate:agent-access:release": "pnpm validate:agent-access && pnpm pack:check && pnpm proof:clean-install"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

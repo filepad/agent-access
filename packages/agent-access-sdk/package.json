@@ -1,0 +1,56 @@
+{
+  "name": "@filepad/agent-access-sdk",
+  "version": "0.1.1",
+  "description": "Official SDK for connecting external agents to Filepad workspaces via Agent Access.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run test/integration.test.ts",
+    "pack:check": "node ../../scripts/ci/check-package-pack.mjs"
+  },
+  "keywords": [
+    "filepad",
+    "agent",
+    "mcp",
+    "ai",
+    "workspace",
+    "api"
+  ],
+  "author": "Filepad <support@filepad.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filepadai-beep/agent-access.git",
+    "directory": "packages/agent-access-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/filepadai-beep/agent-access/issues"
+  },
+  "homepage": "https://github.com/filepadai-beep/agent-access#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

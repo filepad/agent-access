@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@filepad/agent-access-sdk": ["packages/agent-access-sdk/src/index.ts"],
+      "@filepad/agent-access-sdk/*": ["packages/agent-access-sdk/src/*"]
+    }
+  }
+}
