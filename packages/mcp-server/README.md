@@ -27,7 +27,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "filepad": {
       "command": "npx",
-      "args": ["-y", "@filepad/mcp-server"],
+      "args": ["-y", "@filepad/mcp-server@latest"],
       "env": {
         "FILEPAD_BASE_URL": "https://app.filepad.ai/api",
         "FILEPAD_WORKSPACE_ID": "ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",

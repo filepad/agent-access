@@ -110,7 +110,7 @@ Filepad provides an MCP server that speaks stdio JSON-RPC. It exposes Filepad as
 Create an Agent Access key, copy the secret while it is visible, then run:
 
 ```bash
-openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server"],"env":{"FILEPAD_BASE_URL":"https://app.filepad.ai/api","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'
+openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server@latest"],"env":{"FILEPAD_BASE_URL":"https://app.filepad.ai/api","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'
 ```
 
 Confirm OpenClaw can see the server:
@@ -134,7 +134,7 @@ Add to `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claud
   "mcpServers": {
     "filepad": {
       "command": "npx",
-      "args": ["-y", "@filepad/mcp-server"],
+      "args": ["-y", "@filepad/mcp-server@latest"],
       "env": {
         "FILEPAD_BASE_URL": "https://app.filepad.ai/api",
         "FILEPAD_WORKSPACE_ID": "ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
@@ -290,7 +290,7 @@ If an agent cannot use MCP, use the SDK or raw HMAC API through a small CLI wrap
 ## Security Notes
 
 - **Secrets are shown once.** If you lose a secret, rotate the key.
-- **Revoked keys cannot be reused.** Delete a key to cut off access immediately.
+- **Revoked keys cannot be reused.** Revoke a key to cut off access immediately. Clear revoked keys only to remove old records from the visible key list.
 - **Nonce replay protection** is enforced. Reusing a nonce returns `400`.
 - **Timestamp drift** of more than a few minutes is rejected.
 - **Scope enforcement** is strict. A request missing a required scope returns `403`.
@@ -304,7 +304,7 @@ If an agent cannot use MCP, use the SDK or raw HMAC API through a small CLI wrap
 | `400 Nonce replay` | Reused nonce | Generate a fresh UUID for every request |
 | `404 File not found` | File is hidden or id is wrong | Check visibility in workspace settings |
 | MCP tools not appearing | Server not connected | Check Claude Desktop logs and env vars |
-| OpenClaw hangs on setup | `npx` is waiting for confirmation | Use `args: ["-y", "@filepad/mcp-server"]` |
+| OpenClaw hangs on setup | `npx` is waiting for confirmation | Use `args: ["-y", "@filepad/mcp-server@latest"]` |
 
 ## Future Work
 

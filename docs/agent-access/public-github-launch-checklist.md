@@ -70,7 +70,7 @@ Verify:
 ```bash
 npm view @filepad/agent-access-sdk version
 npm view @filepad/mcp-server version
-npx -y @filepad/mcp-server
+npx -y @filepad/mcp-server@latest
 ```
 
 ## 5. Live Proof
@@ -93,7 +93,7 @@ Expected proof path:
 - `filepad_list_signals`
 - `filepad_emit_event`
 
-After npm publish, repeat from a clean directory using `npx -y @filepad/mcp-server`.
+After npm publish, repeat from a clean directory using `npx -y @filepad/mcp-server@latest`.
 
 ## 6. What Not To Publish Yet
 
@@ -103,4 +103,3 @@ After npm publish, repeat from a clean directory using `npx -y @filepad/mcp-serv
 - billing/admin code
 - connector internals
 - private logs or workspace exports
-

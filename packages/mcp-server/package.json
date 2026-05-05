@@ -40,13 +40,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/filepadai-beep/agent-access.git",
+    "url": "git+https://github.com/filepad/agent-access.git",
     "directory": "packages/mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/filepadai-beep/agent-access/issues"
+    "url": "https://github.com/filepad/agent-access/issues"
   },
-  "homepage": "https://github.com/filepadai-beep/agent-access#readme",
+  "homepage": "https://github.com/filepad/agent-access#readme",
   "engines": {
     "node": ">=18.0.0"
   },

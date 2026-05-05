@@ -47,7 +47,7 @@ async function main() {
       'Filepad MCP Server startup failed. Missing required environment variables:\n' +
         config.missing.map((v) => `  - ${v}`).join('\n') +
         '\n\nSet these variables and restart.\n' +
-        'Docs: https://github.com/filepadai-beep/agent-access/tree/main/packages/mcp-server#readme',
+        'Docs: https://github.com/filepad/agent-access/tree/main/packages/mcp-server#readme',
     );
     process.exit(1);
   }

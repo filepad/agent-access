@@ -13,7 +13,7 @@ Public SDK and MCP server packages for connecting external AI agents to Filepad 
 
 ```bash
 npm install @filepad/agent-access-sdk
-npx -y @filepad/mcp-server
+npx -y @filepad/mcp-server@latest
 ```
 
 ## Validate
