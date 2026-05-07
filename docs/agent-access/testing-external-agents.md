@@ -104,12 +104,13 @@ FILEPAD_AGENT_SECRET=... \
 This script performs these steps:
 1. `initialize` — MCP protocol handshake
 2. `tools/list` — Verify scope-filtered tools are exposed
-3. `filepad_health` — Verify HMAC auth and scope retrieval
-4. `filepad_list_tree` — Verify workspace tree access
-5. `filepad_search` — Verify indexed search works
-6. `filepad_emit_event` — Verify activity event emission
-7. `filepad_ack_notification` — Verify mailbox acknowledgement when `notifications:read` is granted
-8. `filepad_list_signals` / `filepad_get_signal` — Verify signals are visible through public Agent Access
+3. `filepad_connect` — Verify HMAC auth, scope retrieval, RuntimeTool discovery, agent home, mailbox, and recent outcomes
+4. `filepad_health` — Verify the lightweight compatibility health check
+5. `filepad_list_tree` — Verify workspace tree access
+6. `filepad_search` — Verify indexed search works
+7. `filepad_emit_event` — Verify activity event emission
+8. `filepad_ack_notification` — Verify mailbox acknowledgement when `notifications:read` is granted
+9. `filepad_list_signals` / `filepad_get_signal` — Verify signals are visible through public Agent Access
 
 If authentication fails, the script prints diagnostic context:
 - Base URL used
@@ -145,7 +146,8 @@ This script:
 |------|----------------|
 | `initialize` | MCP protocol handshake works |
 | `tools/list` | Scopes are correctly filtered and tools are exposed |
-| `filepad_health` | HMAC auth works, credentials are valid, scopes are readable |
+| `filepad_connect` | HMAC auth works and the agent can discover identity, scopes, tools, agent home, mailbox, and recent outcomes |
+| `filepad_health` | Lightweight compatibility health check works |
 | `filepad_list_tree` | Workspace context is accessible through the API |
 | `filepad_search` | Indexed workspace search works |
 | `filepad_emit_event` | Activity events can be emitted into the audit trail |

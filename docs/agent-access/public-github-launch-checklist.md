@@ -87,6 +87,7 @@ pnpm proof:mcp staging
 
 Expected proof path:
 
+- `filepad_connect`
 - `filepad_health`
 - `filepad_list_tree`
 - `filepad_search`

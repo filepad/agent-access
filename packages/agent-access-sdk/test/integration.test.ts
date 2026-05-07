@@ -133,11 +133,14 @@ describe('FilepadAgentClient integration', () => {
 
 describe('FilepadAgentClient with invalid credentials', () => {
   it('fails authentication with wrong secret', async () => {
+    if (!config) return;
     const badClient = new FilepadAgentClient({
-      baseUrl: process.env['FILEPAD_SDK_TEST_BASE_URL'] ?? 'http://localhost:3000',
-      workspaceId: 'ws_test',
-      keyId: 'ik_test',
+      baseUrl: config.baseUrl,
+      workspaceId: config.workspaceId,
+      keyId: config.keyId,
       secret: 'wrong_secret',
+      maxRetries: 0,
+      timeoutMs: 2_000,
     });
 
     await expect(badClient.verifyCredentials()).rejects.toBeInstanceOf(

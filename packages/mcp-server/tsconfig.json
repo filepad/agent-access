@@ -6,7 +6,10 @@
     "strictNullChecks": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "tsBuildInfoFile": "./.tsbuildinfo"
+    "tsBuildInfoFile": "./.tsbuildinfo",
+    "paths": {
+      "@filepad/agent-access-sdk": ["packages/agent-access-sdk/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["dist", "node_modules"]

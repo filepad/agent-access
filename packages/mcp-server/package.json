@@ -1,6 +1,6 @@
 {
   "name": "@filepad/mcp-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP server for Filepad Agent Access. Exposes Filepad workspaces as tools to Claude Desktop, Cursor, and other MCP clients.",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,6 +21,8 @@
     }
   },
   "scripts": {
+    "prebuild": "pnpm -C ../agent-access-sdk build",
+    "pretest": "pnpm -C ../agent-access-sdk build",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

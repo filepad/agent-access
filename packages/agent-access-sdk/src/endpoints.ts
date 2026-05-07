@@ -125,6 +125,66 @@ export class FilepadAgentHttpClient {
     return this.request('GET', pathWithQuery);
   }
 
+  async getBlob(pathWithQuery: string): Promise<Blob> {
+    const signed = signRequest(
+      this.keyId,
+      this.secret,
+      'GET',
+      pathWithQuery,
+      undefined,
+    );
+
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const init: RequestInit = {
+          method: 'GET',
+          headers: signed.headers,
+        };
+        const response = await this.fetchWithTimeout(
+          this.buildUrl(pathWithQuery),
+          init,
+        );
+
+        if (!response.ok) {
+          const text = await response.text();
+          let parsed: { error?: { code?: string; message?: string } } = {};
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            // raw text response
+          }
+          const code = parsed.error?.code ?? 'UNKNOWN';
+          const message = (parsed.error?.message ?? text) || `HTTP ${response.status}`;
+          const error = fromResponse(response.status, code, message);
+
+          if (isRetryableStatus(response.status) && attempt < this.maxRetries) {
+            lastError = error;
+            const delay = this.retryDelayMs * 2 ** attempt;
+            await sleep(delay);
+            continue;
+          }
+          throw error;
+        }
+
+        return await response.blob();
+      } catch (err) {
+        if (err instanceof FilepadAgentError) throw err;
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new FilepadAgentError('TIMEOUT', `Request timed out after ${this.timeoutMs}ms`, 0);
+        }
+        if (attempt < this.maxRetries) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          const delay = this.retryDelayMs * 2 ** attempt;
+          await sleep(delay);
+          continue;
+        }
+        throw lastError ?? err;
+      }
+    }
+    throw lastError ?? new Error('Request failed after retries');
+  }
+
   post<T>(pathWithQuery: string, body?: unknown): Promise<T> {
     return this.request('POST', pathWithQuery, body);
   }

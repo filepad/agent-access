@@ -7,7 +7,9 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@filepad/agent-access-sdk": ["../agent-access-sdk/dist/index.d.ts"]
+      "@filepad/agent-access-sdk": [
+        "packages/agent-access-sdk/dist/index.d.ts"
+      ]
     }
   },
   "include": ["src/**/*.ts"],

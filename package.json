@@ -21,6 +21,7 @@
     "validate:agent-access:release": "pnpm validate:agent-access && pnpm pack:check && pnpm proof:clean-install"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "typescript": "5.9.3",
     "vitest": "^4.1.2"
   }

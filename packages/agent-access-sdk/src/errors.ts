@@ -12,8 +12,8 @@ export class FilepadAgentError extends Error {
 }
 
 export class AuthenticationError extends FilepadAgentError {
-  constructor(message: string, status = 401) {
-    super('UNAUTHENTICATED', message, status);
+  constructor(message: string, status = 401, code = 'UNAUTHENTICATED') {
+    super(code, message, status);
     this.name = 'AuthenticationError';
   }
 }
@@ -82,6 +82,16 @@ export function fromResponse(
   switch (code) {
     case 'UNAUTHENTICATED':
       return new AuthenticationError(message, status);
+    case 'AGENT_AUTH_MISSING_HEADERS':
+    case 'AGENT_AUTH_RATE_LIMITED':
+    case 'AGENT_AUTH_UNKNOWN_KEY':
+    case 'AGENT_AUTH_REVOKED_KEY':
+    case 'AGENT_AUTH_INVALID_TIMESTAMP':
+    case 'AGENT_AUTH_CLOCK_SKEW':
+    case 'AGENT_AUTH_SECRET_UNAVAILABLE':
+    case 'AGENT_AUTH_BAD_SIGNATURE':
+    case 'AGENT_AUTH_NONCE_REPLAY':
+      return new AuthenticationError(message, status, code);
     case 'FORBIDDEN_SCOPE':
       return new ForbiddenScopeError(message);
     case 'NOT_FOUND':

@@ -4,6 +4,7 @@ import { FilepadAgentHttpClient } from './endpoints.js';
 import type {
   FilepadAgentClientConfig,
   AgentAccessScope,
+  AgentConnectDiagnosticsResponse,
   GetAgentApiCapabilitiesResponse,
   GetAgentApiEnvironmentResponse,
   GetAgentApiFileTreeResponse,
@@ -30,6 +31,16 @@ import type {
   AgentProfileFile,
   UpdateAgentProfileRequest,
   UpdateAgentProfileResponse,
+  GetConstitutionResponse,
+  GetConstitutionHistoryResponse,
+  ExportConstitutionMarkdownResponse,
+  ListAgentToolsResponse,
+  CallAgentToolRequest,
+  CallAgentToolResponse,
+  GmailDraftToolInput,
+  GmailGetMessageToolInput,
+  GmailImportMessageToolInput,
+  GmailSearchToolInput,
 } from './types.js';
 import { McpAdapter } from './mcp.js';
 
@@ -75,6 +86,16 @@ export class FilepadAgentClient {
     return this.http.get<GetAgentApiCapabilitiesResponse>('/agent-api/v1/capabilities');
   }
 
+  /**
+   * One-call agent onboarding/resume probe. Returns identity, workspace, scopes,
+   * available RuntimeTools, agent home state, mailbox, and recent outcomes.
+   */
+  async connect(): Promise<AgentConnectDiagnosticsResponse> {
+    return this.http.get<AgentConnectDiagnosticsResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/connect`,
+    );
+  }
+
   // ── Read ──
 
   async getCapabilities(): Promise<GetAgentApiCapabilitiesResponse> {
@@ -84,6 +105,30 @@ export class FilepadAgentClient {
   async getEnvironment(): Promise<GetAgentApiEnvironmentResponse> {
     return this.http.get<GetAgentApiEnvironmentResponse>(
       `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/environment`,
+    );
+  }
+
+  async getConstitution(): Promise<GetConstitutionResponse> {
+    return this.http.get<GetConstitutionResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/constitution`,
+    );
+  }
+
+  async getConstitutionHistory(): Promise<GetConstitutionHistoryResponse> {
+    return this.http.get<GetConstitutionHistoryResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/constitution/history`,
+    );
+  }
+
+  async exportConstitutionMarkdown(): Promise<ExportConstitutionMarkdownResponse> {
+    return this.http.get<ExportConstitutionMarkdownResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/constitution/export/markdown`,
+    );
+  }
+
+  async exportConstitutionPdf(): Promise<Blob> {
+    return this.http.getBlob(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/constitution/export/pdf`,
     );
   }
 
@@ -111,6 +156,49 @@ export class FilepadAgentClient {
     );
   }
 
+  async listTools(): Promise<ListAgentToolsResponse> {
+    return this.http.get<ListAgentToolsResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/tools`,
+    );
+  }
+
+  async callTool(params: CallAgentToolRequest): Promise<CallAgentToolResponse> {
+    return this.http.post<CallAgentToolResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/tools/call`,
+      params,
+    );
+  }
+
+  async searchGmail(
+    params: GmailSearchToolInput = {},
+  ): Promise<CallAgentToolResponse> {
+    return this.callTool({ toolName: 'gmail_search', input: params });
+  }
+
+  async getGmailMessage(
+    params: GmailGetMessageToolInput,
+  ): Promise<CallAgentToolResponse> {
+    return this.callTool({ toolName: 'gmail_get_message', input: params });
+  }
+
+  async importGmailMessage(
+    params: GmailImportMessageToolInput,
+  ): Promise<CallAgentToolResponse> {
+    return this.callTool({ toolName: 'gmail_import_message', input: params });
+  }
+
+  async createGmailDraft(
+    params: GmailDraftToolInput,
+  ): Promise<CallAgentToolResponse> {
+    return this.callTool({ toolName: 'gmail_create_draft', input: params });
+  }
+
+  async sendGmailWithApproval(
+    params: GmailDraftToolInput,
+  ): Promise<CallAgentToolResponse> {
+    return this.callTool({ toolName: 'gmail_send_with_approval', input: params });
+  }
+
   async getFile(fileNodeId: string): Promise<GetAgentApiFileResponse> {
     return this.http.get<GetAgentApiFileResponse>(
       `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/files/${encodeURIComponent(fileNodeId)}`,
@@ -131,6 +219,25 @@ export class FilepadAgentClient {
     const query = params.toString();
     return this.http.get<ListAgentMailboxResponse>(
       `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/mailbox${query ? `?${query}` : ''}`,
+    );
+  }
+
+  async waitForMailbox(options?: {
+    limit?: number;
+    unreadOnly?: boolean;
+    cursor?: string;
+    timeoutMs?: number;
+  }): Promise<ListAgentMailboxResponse> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.unreadOnly !== undefined) {
+      params.set('unreadOnly', String(options.unreadOnly));
+    }
+    if (options?.cursor) params.set('cursor', options.cursor);
+    if (options?.timeoutMs) params.set('timeoutMs', String(options.timeoutMs));
+    const query = params.toString();
+    return this.http.get<ListAgentMailboxResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/mailbox/wait${query ? `?${query}` : ''}`,
     );
   }
 
@@ -225,6 +332,19 @@ export class FilepadAgentClient {
       `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/artifacts`,
       params,
     );
+  }
+
+  async createMarkdownArtifact(params: {
+    title: string;
+    markdown: string;
+    kind?: 'auto' | 'richDoc' | 'note' | undefined;
+  }): Promise<CreateAgentApiArtifactResponse> {
+    return this.createArtifact({
+      title: params.title,
+      text: params.markdown,
+      kind: params.kind ?? 'auto',
+      format: 'markdown',
+    });
   }
 
   async createEvent(

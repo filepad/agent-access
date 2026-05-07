@@ -21,6 +21,12 @@ Use MCP first. The Filepad MCP server is the simplest connection for OpenClaw, C
 
 Use the Filepad skill with MCP when the agent supports skills. The skill tells the agent to use Filepad tools for Filepad-managed workspace files, create artifacts for durable output, and propose edits instead of writing directly.
 
+Use runtime-native instructions too. MCP exposes tools, but most agents still
+prioritize their own native memory, rules, and skills. See
+[Runtime-Native Agent Onboarding](./runtime-native-onboarding.md) for the
+instruction pack that makes Filepad startup context instead of an optional
+toolbox.
+
 Use the SDK or raw HMAC API only when the runtime does not support MCP or you are building a custom adapter.
 
 ## Authentication: HMAC Now, OAuth Later
@@ -36,7 +42,9 @@ OAuth 2.0 / OIDC and Device Authorization Grant (QR flow) are **future work** an
 3. Click **Create Key**.
 4. Choose scopes. Recommended for most agents:
    - `env:read` — read workspace environment and search
-   - `artifacts:write` — create artifacts
+   - `tools:read` — discover canonical RuntimeTools
+   - `tools:call` — call governed RuntimeTools
+   - `artifacts:direct_write` — create new artifacts when intentionally granted
    - `files:propose` — propose reviewable edits
    - `events.write` — report activity
    - `signals:write` — create signals (if your agent uses them)
@@ -122,7 +130,7 @@ openclaw mcp list
 Then start a new OpenClaw message:
 
 ```text
-Use Filepad to check the connection, inspect the workspace, and tell me what you can do. Start by calling filepad_health.
+Use Filepad now. Call filepad_connect first, read the bootstrap response, inspect the constitution and agent home, then tell me what you can do and what you recommend doing first.
 ```
 
 ### Claude Desktop Config
@@ -152,11 +160,14 @@ Restart the MCP client. You should see Filepad tools in the tool list.
 
 | Tool | Scope | Description |
 |------|-------|-------------|
+| `filepad_connect` | none | Start-here onboarding/resume diagnostics with workspace identity, scopes, RuntimeTools, agent home, mailbox, recent outcomes, and suggested first actions |
+| `filepad_bootstrap` | none | Alias for `filepad_connect` for MCP clients that look for bootstrap-style tools |
 | `filepad_health` | none | Verify the Filepad connection and show granted scopes |
-| `filepad_list_tree` | `env:read` | List workspace folders and files |
-| `filepad_read_file` | `env:read` | Read a file by id |
-| `filepad_search` | `env:read` | Search workspace context |
-| `filepad_create_artifact` | `artifacts:write` | Create a note artifact |
+| `filepad_list_tree` | `tools:call`, `env:read` | Compatibility alias for canonical workspace file-tree listing |
+| `filepad_read_file` | `tools:call`, `env:read` | Compatibility alias for canonical workspace file reading |
+| `filepad_search` | `tools:call`, `env:read` | Compatibility alias for canonical workspace search |
+| `filepad_create_artifact` | `tools:call`, `artifacts:direct_write` | Compatibility alias for governed artifact creation |
+| `filepad_create_artifact_from_file` | `tools:call`, `artifacts:direct_write` | Create a governed artifact from a local text/markdown file visible to the MCP server |
 | `filepad_propose_edit` | `files:propose` | Propose a reviewable edit |
 | `filepad_emit_event` | `events.write` | Emit an activity event |
 | `filepad_create_signal` | `signals:write` | Create a signal if scoped |
@@ -165,6 +176,9 @@ Restart the MCP client. You should see Filepad tools in the tool list.
 | `filepad_ack_notification` | `notifications:read` | Acknowledge mailbox notifications after processing |
 | `filepad_get_profile` | `env:read` | Read this integration's agent home profile files |
 | `filepad_update_profile` | `env:read`, `files:propose` | Propose a reviewable update to the agent profile |
+| `gmail_search` / `gmail_get_message` | `tools:call`, `gmail:read` | Read synced Gmail source records |
+| `gmail_import_message` | `tools:call`, `gmail:write` | Promote a synced Gmail source record into workspace knowledge through Temporal |
+| `gmail_create_draft` / `gmail_send_with_approval` | `tools:call`, `gmail:write` | Request governed Gmail outbound actions that wait for human approval |
 
 ### Agent Home
 
@@ -280,7 +294,9 @@ If an agent cannot use MCP, use the SDK or raw HMAC API through a small CLI wrap
 | Scope | What it allows |
 |-------|----------------|
 | `env:read` | Read folders, file tree, file content, search, skill prompts, MCP resources |
-| `artifacts:write` | Create note artifacts under `artifacts/` |
+| `tools:read` | Discover canonical RuntimeTools available to the agent |
+| `tools:call` | Call governed RuntimeTools through Filepad policy/provenance |
+| `artifacts:direct_write` | Create artifacts under `artifacts/` when intentionally granted |
 | `files:propose` | Create reviewable edit proposals for allowed files |
 | `memory:read` | Read memory entries (reserved for future memory surfaces) |
 | `events.write` | Write agent activity events |

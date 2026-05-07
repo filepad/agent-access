@@ -1,10 +1,22 @@
 // FILE MEMO: Thin MCP-compatible adapter over the Agent Access client.
 
-import type { FilepadAgentClient } from './client.js';
 import type { GetMcpPromptsResponse, GetMcpResourcesResponse, McpPrompt, McpResource } from './types.js';
 
+interface McpAdapterClient {
+  getMcpPrompts(): Promise<GetMcpPromptsResponse>;
+  getMcpResources(): Promise<GetMcpResourcesResponse>;
+  getMailbox(options?: {
+    limit?: number;
+    unreadOnly?: boolean;
+    cursor?: string;
+  }): Promise<unknown>;
+  getFile(fileNodeId: string): Promise<{
+    content: { kind: string; text?: string | undefined };
+  }>;
+}
+
 export class McpAdapter {
-  constructor(private readonly client: FilepadAgentClient) {}
+  constructor(private readonly client: McpAdapterClient) {}
 
   async listPrompts(): Promise<McpPrompt[]> {
     const res = await this.client.getMcpPrompts();

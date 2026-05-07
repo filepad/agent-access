@@ -2,13 +2,19 @@
 // All tool arguments are parsed through typed schemas before SDK calls.
 
 import type { FilepadAgentClient } from '@filepad/agent-access-sdk';
-import type { AgentAccessScope } from '@filepad/agent-access-sdk';
-import { listToolsForScopes, findTool } from './tool-registry.js';
+import { readFile } from 'node:fs/promises';
+import { basename, extname } from 'node:path';
+import type {
+  AgentAccessScope,
+  AgentCreateArtifactKind,
+} from '@filepad/agent-access-sdk';
+import { findTool, listToolsForScopes } from './tool-registry.js';
 import { FILEPAD_MCP_SERVER_VERSION } from './version.js';
 import type {
   SearchArgs,
   ReadFileArgs,
   CreateArtifactArgs,
+  CreateArtifactFromFileArgs,
   ProposeEditArgs,
   EmitEventArgs,
   CreateSignalArgs,
@@ -17,6 +23,7 @@ import type {
   AckNotificationArgs,
   GetProfileArgs,
   UpdateProfileArgs,
+  ConstitutionArgs,
   AgentProfileField,
 } from './tool-registry.js';
 
@@ -65,6 +72,29 @@ function assertStringArray(value: unknown, field: string): string[] {
   return strings;
 }
 
+const AGENT_ARTIFACT_KINDS = new Set<string>([
+  'note',
+  'auto',
+  'richText',
+  'richDoc',
+  'diagram',
+  'sheet',
+]);
+
+function isAgentArtifactKind(value: string): value is AgentCreateArtifactKind {
+  return AGENT_ARTIFACT_KINDS.has(value);
+}
+
+function isArtifactFormat(
+  value: string | undefined,
+): value is CreateArtifactArgs['format'] {
+  return (
+    value === 'plain_text' ||
+    value === 'markdown' ||
+    value === 'prosemirror_json'
+  );
+}
+
 function parseSearchArgs(args: unknown): SearchArgs {
   if (!args || typeof args !== 'object') {
     throw new Error('Missing arguments for filepad_search');
@@ -94,10 +124,33 @@ function parseCreateArtifactArgs(args: unknown): CreateArtifactArgs {
     throw new Error('Missing arguments for filepad_create_artifact');
   }
   const a = args as Record<string, unknown>;
+  const kind = assertOptionalString(a['kind']);
+  const format = assertOptionalString(a['format']);
   return {
     title: assertString(a['title'], 'title'),
     text: assertOptionalString(a['text']),
+    kind: kind && isAgentArtifactKind(kind) ? kind : undefined,
+    format: isArtifactFormat(format) ? format : undefined,
   };
+}
+
+function parseCreateArtifactFromFileArgs(args: unknown): CreateArtifactFromFileArgs {
+  if (!args || typeof args !== 'object') {
+    throw new Error('Missing arguments for filepad_create_artifact_from_file');
+  }
+  const a = args as Record<string, unknown>;
+  const kind = assertOptionalString(a['kind']);
+  const format = assertOptionalString(a['format']);
+  return {
+    path: assertString(a['path'], 'path'),
+    title: assertOptionalString(a['title']),
+    kind: kind && isAgentArtifactKind(kind) ? kind : undefined,
+    format: isArtifactFormat(format) ? format : undefined,
+  };
+}
+
+function inferArtifactFormatFromPath(path: string): CreateArtifactArgs['format'] {
+  return extname(path).toLowerCase() === '.md' ? 'markdown' : 'plain_text';
 }
 
 function parseProposeEditArgs(args: unknown): ProposeEditArgs {
@@ -239,6 +292,15 @@ function parseUpdateProfileArgs(args: unknown): UpdateProfileArgs {
   };
 }
 
+function parseConstitutionArgs(args: unknown): ConstitutionArgs {
+  if (args === undefined || args === null) return {};
+  if (typeof args !== 'object') return {};
+  const a = args as Record<string, unknown>;
+  return {
+    refresh: typeof a['refresh'] === 'boolean' ? a['refresh'] : undefined,
+  };
+}
+
 export async function handleInitialize() {
   return {
     protocolVersion: '2024-11-05',
@@ -247,6 +309,8 @@ export async function handleInitialize() {
       resources: {},
       prompts: {},
     },
+    instructions:
+      'Filepad is an agent-first workspace. Call filepad_connect or filepad_bootstrap before any other Filepad tool. The response includes identity, workspace, scopes, available RuntimeTools, agent home, mailbox, recent outcomes, missing permissions, and suggested first actions.',
     serverInfo: {
       name: 'filepad',
       version: FILEPAD_MCP_SERVER_VERSION,
@@ -258,13 +322,21 @@ export async function handleListTools(
   _request: unknown,
   ctx: McpHandlerContext,
 ) {
-  const tools = listToolsForScopes(ctx.scopes);
-  return {
-    tools: tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema,
+  const listed = await ctx.client.listTools();
+  const tools = [
+    ...listToolsForScopes(ctx.scopes).map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
     })),
+    ...listed.tools.map((tool) => ({
+      name: tool.providerName,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    })),
+  ];
+  return {
+    tools,
   };
 }
 
@@ -276,7 +348,13 @@ export async function handleCallTool(
   const { name, arguments: args } = req.params;
   const tool = findTool(name);
   if (!tool) {
-    throw new Error(`Unknown tool: ${name}`);
+    const result = await ctx.client.callTool({
+      toolName: name,
+      input: args,
+    });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+    };
   }
 
   const scopeSet = new Set(ctx.scopes);
@@ -308,15 +386,24 @@ export async function handleCallTool(
       };
     }
 
+    case 'filepad_connect':
+    case 'filepad_bootstrap': {
+      const result = await ctx.client.connect();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
     case 'filepad_search': {
       const parsed = parseSearchArgs(args);
-      const result = await ctx.client.search(
-        parsed.query,
-        {
-          ...(parsed.type ? { type: parsed.type } : {}),
+      const result = await ctx.client.callTool({
+        toolName: 'workspace_search',
+        input: {
+          query: parsed.query,
+          ...(parsed.type ? { searchType: parsed.type } : {}),
           ...(parsed.limit ? { limit: parsed.limit } : {}),
         },
-      );
+      });
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
@@ -324,14 +411,20 @@ export async function handleCallTool(
 
     case 'filepad_read_file': {
       const parsed = parseReadFileArgs(args);
-      const result = await ctx.client.getFile(parsed.fileNodeId);
+      const result = await ctx.client.callTool({
+        toolName: 'workspace_read_file',
+        input: { fileNodeId: parsed.fileNodeId },
+      });
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     }
 
     case 'filepad_list_tree': {
-      const result = await ctx.client.getFileTree();
+      const result = await ctx.client.callTool({
+        toolName: 'workspace_list_file_tree',
+        input: {},
+      });
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
@@ -342,6 +435,22 @@ export async function handleCallTool(
       const result = await ctx.client.createArtifact({
         title: parsed.title,
         text: parsed.text ?? '',
+        ...(parsed.kind ? { kind: parsed.kind } : {}),
+        ...(parsed.format ? { format: parsed.format } : {}),
+      });
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case 'filepad_create_artifact_from_file': {
+      const parsed = parseCreateArtifactFromFileArgs(args);
+      const text = await readFile(parsed.path, 'utf8');
+      const result = await ctx.client.createArtifact({
+        title: parsed.title ?? basename(parsed.path),
+        text,
+        kind: parsed.kind ?? 'auto',
+        format: parsed.format ?? inferArtifactFormatFromPath(parsed.path),
       });
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -425,6 +534,14 @@ export async function handleCallTool(
       };
     }
 
+    case 'filepad_get_constitution': {
+      parseConstitutionArgs(args);
+      const result = await ctx.client.getConstitution();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
     default:
       throw new Error(`Unhandled tool: ${name}`);
   }
@@ -454,6 +571,13 @@ export async function handleListResources(
       : []),
     ...(canReadEnvironment
       ? [
+          {
+            uri: `filepad://workspace/${ctx.workspaceId}/constitution`,
+            name: 'constitution',
+            mimeType: 'application/json',
+            description:
+              'Workspace constitution — authoritative identity document for this external agent',
+          },
           {
             uri: `filepad://workspace/${ctx.workspaceId}/environment`,
             name: 'environment',
@@ -496,6 +620,19 @@ export async function handleReadResource(
           uri,
           mimeType: 'application/json',
           text: JSON.stringify(env, null, 2),
+        },
+      ],
+    };
+  }
+
+  if (uri === `filepad://workspace/${ctx.workspaceId}/constitution`) {
+    const result = await ctx.client.getConstitution();
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(result, null, 2),
         },
       ],
     };

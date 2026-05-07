@@ -1,7 +1,11 @@
 // FILE MEMO: Canonical tool registry mapping Filepad Agent Access capabilities to MCP tools.
 // Filtered by scopes. Schemas are generated from Zod contracts where possible.
 
-import type { AgentAccessScope, AgentApiSearchMode } from '@filepad/agent-access-sdk';
+import type {
+  AgentAccessScope,
+  AgentApiSearchMode,
+  AgentCreateArtifactKind,
+} from '@filepad/agent-access-sdk';
 
 export interface McpToolDefinition {
   name: string;
@@ -25,6 +29,15 @@ export interface ReadFileArgs {
 export interface CreateArtifactArgs {
   title: string;
   text?: string | undefined;
+  kind?: AgentCreateArtifactKind | undefined;
+  format?: 'plain_text' | 'markdown' | 'prosemirror_json' | undefined;
+}
+
+export interface CreateArtifactFromFileArgs {
+  path: string;
+  title?: string | undefined;
+  kind?: AgentCreateArtifactKind | undefined;
+  format?: 'plain_text' | 'markdown' | 'prosemirror_json' | undefined;
 }
 
 export interface ProposeEditArgs {
@@ -78,7 +91,31 @@ export interface UpdateProfileArgs {
   mode?: 'append' | 'replace' | undefined;
 }
 
+export interface ConstitutionArgs {
+  refresh?: boolean | undefined;
+}
+
 const TOOL_REGISTRY: McpToolDefinition[] = [
+  {
+    name: 'filepad_connect',
+    description:
+      'START HERE. Connect to Filepad and return the full agent onboarding diagnostic: identity, workspace, scopes, RuntimeTools, agent home, mailbox, recent outcomes, and suggested first actions. Run this first and again when resuming work.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+    requiredScopes: [],
+  },
+  {
+    name: 'filepad_bootstrap',
+    description:
+      'START HERE alias for filepad_connect. Use this when your MCP client looks for bootstrap/connect tools. Returns the same onboarding diagnostic and suggested first actions.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+    requiredScopes: [],
+  },
   {
     name: 'filepad_health',
     description:
@@ -112,7 +149,7 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
       },
       required: ['query'],
     },
-    requiredScopes: ['env:read'],
+    requiredScopes: ['tools:call', 'env:read'],
   },
   {
     name: 'filepad_read_file',
@@ -129,7 +166,7 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
       },
       required: ['fileNodeId'],
     },
-    requiredScopes: ['env:read'],
+    requiredScopes: ['tools:call', 'env:read'],
   },
   {
     name: 'filepad_list_tree',
@@ -139,12 +176,18 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
       type: 'object',
       properties: {},
     },
-    requiredScopes: ['env:read'],
+    requiredScopes: ['tools:call', 'env:read'],
   },
   {
     name: 'filepad_create_artifact',
     description:
-      'Create a new note artifact under the artifacts/ folder. ' +
+      'Create a new artifact in the Filepad workspace. ' +
+      'Always pass text as markdown and set format to "markdown" — Filepad converts it to the correct editor format automatically. ' +
+      'Choose kind based on what you are creating: ' +
+      '"richDoc" for paginated documents (reports, summaries, papers, structured long-form content); ' +
+      '"richText" for inline formatted notes with headings and lists; ' +
+      '"note" for plain markdown notes; ' +
+      '"sheet" for tabular data — pass a markdown table or CSV and Filepad builds the spreadsheet. ' +
       'The artifact becomes a permanent workspace file.',
     inputSchema: {
       type: 'object',
@@ -156,12 +199,56 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
         },
         text: {
           type: 'string',
-          description: 'Markdown content',
+          description: 'Content as markdown. For sheet, use a markdown table (| Col | Col |) or CSV rows.',
+        },
+        kind: {
+          type: 'string',
+          enum: ['auto', 'note', 'richText', 'richDoc', 'sheet', 'diagram'],
+          description:
+            'Editor kind. richDoc = paginated document, richText = inline formatted note, note = plain markdown, sheet = spreadsheet, diagram = visual diagram.',
+        },
+        format: {
+          type: 'string',
+          enum: ['markdown', 'csv', 'plain_text', 'prosemirror_json'],
+          description:
+            'Input format. Use "markdown" for all rich editors and notes. Use "csv" for sheet if passing raw CSV instead of a markdown table.',
         },
       },
       required: ['title'],
     },
-    requiredScopes: ['artifacts:write'],
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
+  },
+  {
+    name: 'filepad_create_artifact_from_file',
+    description:
+      'Create a Filepad artifact from a local file readable by this MCP server process. ' +
+      'The file is read locally and converted the same way as filepad_create_artifact — markdown files become richDoc automatically.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Absolute local file path readable by the MCP process',
+        },
+        title: {
+          type: 'string',
+          maxLength: 500,
+          description: 'Artifact title; defaults to the filename if omitted',
+        },
+        kind: {
+          type: 'string',
+          enum: ['auto', 'note', 'richText', 'richDoc', 'sheet', 'diagram'],
+          description: 'Editor kind. Defaults to auto which creates richDoc from .md files.',
+        },
+        format: {
+          type: 'string',
+          enum: ['markdown', 'csv', 'plain_text', 'prosemirror_json'],
+          description: 'File format. Defaults to markdown for .md files.',
+        },
+      },
+      required: ['path'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
   },
   {
     name: 'filepad_propose_edit',
@@ -365,6 +452,23 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
       required: ['field', 'content'],
     },
     requiredScopes: ['env:read', 'files:propose'],
+  },
+  {
+    name: 'filepad_get_constitution',
+    description:
+      'Get the workspace constitution — your authoritative workspace identity document. ' +
+      'Returns role, territory, behavioral rules, active context, vocabulary, and communication protocols. ' +
+      'Read this as you read your framework-native identity (SOUL.md). Refreshes active context on each call.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        refresh: {
+          type: 'boolean',
+          description: 'Force refresh active context from workspace state',
+        },
+      },
+    },
+    requiredScopes: ['env:read'],
   },
 ];
 

@@ -39,7 +39,23 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop. You should see Filepad tools in the tool list.
+Restart Claude Desktop. Start with `filepad_connect` or `filepad_bootstrap`;
+it returns identity, workspace, scopes, available RuntimeTools, agent home,
+mailbox, recent outcomes, missing permissions, tool groups, and suggested
+first actions in one response.
+
+First prompt to send your agent:
+
+```text
+Use Filepad now. Call filepad_connect first, read the bootstrap response, inspect the constitution and agent home, then tell me what you can do and what you recommend doing first.
+```
+
+For OpenClaw, Claude Code, Codex, Cursor, Windsurf, or custom agents, add the
+runtime instruction pack from
+[`docs/agent-access/runtime-native-onboarding.md`](https://github.com/filepad/agent-access/blob/main/docs/agent-access/runtime-native-onboarding.md)
+to the agent's native project rules, memory, skill, or instruction file. MCP
+exposes tools; runtime instructions make Filepad part of the agent's startup
+loop.
 
 ## Environment Variables
 
@@ -54,11 +70,14 @@ Restart Claude Desktop. You should see Filepad tools in the tool list.
 
 | Tool | Scope | Description |
 |------|-------|-------------|
+| `filepad_connect` | None | Start-here onboarding/resume diagnostics with workspace identity, scopes, tools, agent home, mailbox, recent outcomes, and suggested first actions |
+| `filepad_bootstrap` | None | Alias for `filepad_connect` for MCP clients that look for bootstrap-style tools |
 | `filepad_health` | None | Check connection and report granted scopes |
-| `filepad_list_tree` | `env:read` | List workspace folders and files |
-| `filepad_read_file` | `env:read` | Read a file by id |
-| `filepad_search` | `env:read` | Search workspace context |
-| `filepad_create_artifact` | `artifacts:write` | Create a note artifact |
+| `filepad_list_tree` | `tools:call`, `env:read` | Compatibility alias for canonical workspace file-tree listing |
+| `filepad_read_file` | `tools:call`, `env:read` | Compatibility alias for canonical workspace file reading |
+| `filepad_search` | `tools:call`, `env:read` | Compatibility alias for canonical workspace search |
+| `filepad_create_artifact` | `tools:call`, `artifacts:direct_write` | Compatibility alias for governed artifact creation |
+| `filepad_create_artifact_from_file` | `tools:call`, `artifacts:direct_write` | Read a local text/markdown file and create a governed artifact |
 | `filepad_propose_edit` | `files:propose` | Propose a reviewable edit |
 | `filepad_emit_event` | `events.write` | Emit an activity event |
 | `filepad_create_signal` | `signals:write` | Create a signal |
@@ -67,8 +86,11 @@ Restart Claude Desktop. You should see Filepad tools in the tool list.
 | `filepad_ack_notification` | `notifications:read` | Acknowledge mailbox notifications after processing |
 | `filepad_get_profile` | `env:read` | Read this integration's agent home profile files |
 | `filepad_update_profile` | `env:read`, `files:propose` | Propose a reviewable update to the agent profile |
+| `gmail_search` / `gmail_get_message` | `tools:call`, `gmail:read` | Read synced Gmail source records |
+| `gmail_import_message` | `tools:call`, `gmail:write` | Promote a synced Gmail source record into workspace knowledge through Temporal |
+| `gmail_create_draft` / `gmail_send_with_approval` | `tools:call`, `gmail:write` | Request governed Gmail outbound actions that wait for human approval |
 
-Tools are automatically filtered by your key's granted scopes. If your key only has `env:read`, you will only see read tools.
+Tools are automatically filtered by your key's granted scopes. If your key only has `env:read`, you will only see read tools. Provider tools such as Gmail are discovered from the backend canonical RuntimeTool catalog so MCP clients use the same policy path as FilepadAI and automations. Local `filepad_*` mutation helpers are compatibility aliases over the governed Agent Access/RuntimeTool path, not a separate write system.
 
 ## Resources and Prompts
 

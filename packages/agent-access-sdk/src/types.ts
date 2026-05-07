@@ -5,13 +5,30 @@
 export type AgentAccessScope =
   | 'env:read'
   | 'artifacts:write'
+  | 'artifacts:direct_write'
   | 'files:propose'
   | 'memory:read'
   | 'events.write'
   | 'signals:write'
-  | 'notifications:read';
+  | 'notifications:read'
+  | 'tools:read'
+  | 'tools:call'
+  | 'gmail:read'
+  | 'gmail:write'
+  | 'github:read'
+  | 'github:write'
+  | 'compute:run';
 
 export type AgentApiSearchMode = 'semantic' | 'keyword' | 'hybrid';
+
+export type AgentArtifactKind =
+  | 'note'
+  | 'richText'
+  | 'richDoc'
+  | 'diagram'
+  | 'sheet';
+
+export type AgentCreateArtifactKind = AgentArtifactKind | 'auto';
 
 export interface AgentApiFileTreeNode {
   id: string;
@@ -36,6 +53,63 @@ export interface GetAgentApiCapabilitiesResponse {
     workspaceId: string;
   };
   scopes: AgentAccessScope[];
+}
+
+export interface AgentConnectScopeStatus {
+  scope: AgentAccessScope;
+  status: 'granted' | 'missing';
+  reason: string;
+}
+
+export interface AgentConnectDiagnosticsResponse {
+  status: 'ok';
+  checkedAt: string;
+  agent: {
+    keyId: string;
+    integrationId: string;
+    workspaceId: string;
+    displayName: string | null;
+  };
+  workspace: {
+    id: string;
+    displayName: string;
+    kind: 'personal' | 'shared';
+    ownerName: string;
+    ownerTimezone: string;
+    installedKits: string[];
+  };
+  scopes: AgentAccessScope[];
+  recommendedScopes: AgentConnectScopeStatus[];
+  tools: AgentRuntimeTool[];
+  bootstrap: {
+    summary: string;
+    startupPrompt: string;
+    suggestedFirstActions: string[];
+    availableToolGroups: Array<{
+      group: string;
+      purpose: string;
+      tools: string[];
+    }>;
+  };
+  agentHome: {
+    status: 'ready' | 'missing';
+    folderPath: string;
+    files: Array<{
+      path: string;
+      fileNodeId: string | null;
+      artifactId: string | null;
+      status: 'ready' | 'missing';
+    }>;
+  };
+  mailbox: {
+    unreadCount: number;
+    recent: AgentMailboxItem[];
+  };
+  recentOutcomes: AgentMailboxItem[];
+  diagnostics: {
+    warnings: string[];
+    nextRecommendedActions: string[];
+  };
 }
 
 export interface GetAgentApiEnvironmentResponse {
@@ -88,6 +162,86 @@ export interface GetMcpResourcesResponse {
   resources: McpResource[];
 }
 
+export interface AgentRuntimeTool {
+  name: string;
+  providerName: string;
+  displayName: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown> | undefined;
+  capabilityScope: string;
+  capabilityType:
+    | 'read'
+    | 'write'
+    | 'search'
+    | 'compute'
+    | 'admin'
+    | 'send'
+    | 'delete';
+  riskLevel: 'low' | 'medium' | 'high';
+  approvalPolicy: 'auto' | 'approval_required' | 'blocked';
+  minimumWorkspaceRole: string;
+  requiredScopes: AgentAccessScope[];
+  mutates: {
+    artifacts: boolean;
+    fileNodes: boolean;
+    externalNetwork: boolean;
+    externalService?: boolean | undefined;
+    sendsMessage?: boolean | undefined;
+    deletesData?: boolean | undefined;
+    secrets: boolean;
+  };
+  requiresConnection: boolean;
+  integrationProvider: string | null;
+}
+
+export interface ListAgentToolsResponse {
+  tools: AgentRuntimeTool[];
+}
+
+export interface CallAgentToolRequest {
+  toolName: string;
+  input?: unknown;
+  idempotencyKey?: string | undefined;
+}
+
+export interface CallAgentToolResponse {
+  toolName: string;
+  output: unknown;
+  provenance: {
+    actorType: 'external_agent';
+    integrationId: string;
+    keyId: string;
+    workspaceId: string;
+    runId: string;
+    toolCallId: string;
+    policyDecision: 'allow';
+  };
+}
+
+export interface GmailSearchToolInput {
+  query?: string | undefined;
+  limit?: number | undefined;
+}
+
+export interface GmailGetMessageToolInput {
+  externalId: string;
+}
+
+export interface GmailImportMessageToolInput {
+  externalId: string;
+}
+
+export interface GmailDraftToolInput {
+  sourceRecordId?: string | undefined;
+  toAddresses: string[];
+  ccAddresses?: string[] | undefined;
+  bccAddresses?: string[] | undefined;
+  subject: string;
+  bodyText: string;
+  threadExternalId?: string | null | undefined;
+}
+
 export interface AgentApiSearchResult {
   artifactId: string;
   fileNodeId: string;
@@ -114,7 +268,7 @@ export interface Artifact {
   id: string;
   workspaceId: string;
   fileNodeId: string;
-  kind: string;
+  kind: AgentArtifactKind | 'pdf';
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -146,6 +300,8 @@ export interface GetAgentApiFileResponse {
 export interface CreateAgentApiArtifactRequest {
   title: string;
   text?: string | undefined;
+  kind?: AgentCreateArtifactKind | undefined;
+  format?: 'plain_text' | 'markdown' | 'prosemirror_json' | undefined;
 }
 
 export interface CreateAgentApiArtifactResponse {
@@ -207,7 +363,8 @@ export type AgentMailboxItemKind =
   | 'signal.accepted'
   | 'signal.rejected'
   | 'proposal.approved'
-  | 'proposal.rejected';
+  | 'proposal.rejected'
+  | 'context.refresh';
 
 export interface AgentMailboxItem {
   id: string;
@@ -289,4 +446,89 @@ export interface FilepadAgentClientConfig {
 export interface SignedRequest {
   headers: Record<string, string>;
   rawBody: string;
+}
+
+// ── Constitution types ──
+
+export interface ConstitutionTerritory {
+  readPaths: string[];
+  writePaths: string[];
+  proposePaths: string[];
+  offLimits: string[];
+  boundaryRule: string;
+}
+
+export interface ConstitutionActiveContextPendingItem {
+  kind: 'proposal' | 'signal' | 'notification';
+  id: string;
+  summary: string;
+}
+
+export interface ConstitutionActiveContext {
+  currentFocus: string | null;
+  hotProjects: string[];
+  nextMilestone: string | null;
+  pendingItems: ConstitutionActiveContextPendingItem[];
+  lastRefreshed: string;
+}
+
+export interface ConstitutionBehavioralRule {
+  rule: string;
+  rationale?: string | undefined;
+}
+
+export interface ConstitutionCommunication {
+  urgentChannel: string;
+  updateLocation: string;
+  quietHours: string | null;
+  stuckProtocol: string;
+}
+
+export interface ConstitutionVocabularyEntry {
+  term: string;
+  definition: string;
+}
+
+export interface WorkspaceConstitution {
+  schemaVersion: 1;
+  workspaceId: string;
+  keyId: string;
+  versionId: string;
+  lastRefreshed: string;
+  identity: {
+    workspaceName: string;
+    ownerName: string;
+    ownerTimezone: string;
+    installedKits: string[];
+    role: string;
+  };
+  territory: ConstitutionTerritory;
+  activeContext: ConstitutionActiveContext;
+  behavioralRules: ConstitutionBehavioralRule[];
+  communication: ConstitutionCommunication;
+  vocabulary: ConstitutionVocabularyEntry[];
+}
+
+export interface GetConstitutionResponse {
+  constitution: WorkspaceConstitution;
+}
+
+export interface ConstitutionVersionEntry {
+  proposalId: string;
+  status: 'proposed' | 'approved' | 'rejected' | 'superseded';
+  summary: string | null;
+  createdAt: string;
+  createdByRunId: string | null;
+  createdByMessageId: string | null;
+  instruction: string | null;
+  toolName: string | null;
+}
+
+export interface GetConstitutionHistoryResponse {
+  versions: ConstitutionVersionEntry[];
+}
+
+export interface ExportConstitutionMarkdownResponse {
+  content: string;
+  filename: string;
 }
