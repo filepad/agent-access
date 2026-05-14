@@ -1,5 +1,5 @@
 // TEST CATEGORY: scaffolding
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
@@ -97,6 +97,7 @@ describe('agent-connect pairing', () => {
         '@filepad/mcp-server@latest',
       ]);
       expect(config.mcp.servers.filepad.env['FILEPAD_AGENT_SECRET']).toBe('secret_once');
+      expect((await stat(configPath)).mode & 0o777).toBe(0o600);
 
       const structured = JSON.parse(await readFile(outputPath, 'utf8')) as typeof result;
       expect(structured.response.handoff.sessionToken).toBe('fp_sess_test');

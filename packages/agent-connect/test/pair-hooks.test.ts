@@ -1,5 +1,5 @@
 // TEST CATEGORY: scaffolding
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
@@ -207,6 +207,7 @@ describe('pairAgent Claude Code desired host state', () => {
       },
     });
     expect(hookSettings.hooks['PreToolUse']).toBeDefined();
+    expect((await stat(globalMcpConfigPath)).mode & 0o777).toBe(0o600);
     expect(result.wroteConfig).toBe(true);
     expect(result.lifecycle.configWritten).toBe(true);
     expect(result.lifecycle.configTarget).toBe('claude.mcp.local.filepad');
@@ -350,6 +351,7 @@ describe('pairAgent Claude Code desired host state', () => {
     };
     expect(creds.enforcementMode).toBe('block');
     expect(creds.offlinePolicy).toBe('deny');
+    expect((await stat(credPath)).mode & 0o777).toBe(0o600);
   });
 
   it('defaults to block enforcement mode and allow offline policy', async () => {

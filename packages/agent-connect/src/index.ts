@@ -1,7 +1,7 @@
 // FILE MEMO: Pre-MCP Filepad pairing helpers shared by the CLI and tests.
 
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -211,6 +211,27 @@ function filesystemConfigPathForRuntime(
   return configPath;
 }
 
+async function chmodIfExists(path: string, mode: number): Promise<void> {
+  try {
+    await chmod(path, mode);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === 'ENOENT') return;
+    throw error;
+  }
+}
+
+async function hardenSensitiveConfigFile(path: string): Promise<void> {
+  await chmodIfExists(path, 0o600);
+}
+
+async function hardenClaudeCodeConfigFiles(configPath: string): Promise<void> {
+  await hardenSensitiveConfigFile(expandHome('~/.claude.json'));
+  await hardenSensitiveConfigFile(
+    filesystemConfigPathForRuntime('claude-code', configPath),
+  );
+}
+
 async function readJsonFile(path: string): Promise<Record<string, unknown>> {
   try {
     const text = await readFile(path, 'utf8');
@@ -274,6 +295,7 @@ async function writeRuntimeConfig(params: {
       } else {
         await execFileAsync('claude', args);
       }
+      await hardenClaudeCodeConfigFiles(params.configPath);
       return;
     } catch {
       // claude CLI unavailable/not in PATH, or native registration failed.
@@ -288,7 +310,10 @@ async function writeRuntimeConfig(params: {
   const existing = await readJsonFile(fileConfigPath);
   const updated = patchMcpConfig(params.runtime, existing, params.server);
   await mkdir(dirname(fileConfigPath), { recursive: true });
-  await writeFile(fileConfigPath, `${JSON.stringify(updated, null, 2)}\n`);
+  await writeFile(fileConfigPath, `${JSON.stringify(updated, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  await hardenSensitiveConfigFile(fileConfigPath);
 }
 
 function runtimeConfigTarget(runtime: AgentRuntime): string {

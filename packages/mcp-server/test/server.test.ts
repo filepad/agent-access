@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 import { handleCallTool, handleListTools, compactBootstrapForAgent } from '../src/handlers.js';
 import { FilepadMcpServer } from '../src/server.js';
+import { FILEPAD_MCP_SERVER_VERSION } from '../src/version.js';
 
 function getTestConfig() {
   const baseUrl = process.env['FILEPAD_SDK_TEST_BASE_URL'] ?? 'http://localhost:3000';
@@ -72,6 +73,29 @@ describe('FilepadMcpServer integration', () => {
     expect(result['instructions']).toContain('filepad_bootstrap');
   });
 
+  it('ignores initialized notifications without responding', async () => {
+    if (!server) return;
+    const response = await server.handleMessage({
+      jsonrpc: '2.0',
+      method: 'notifications/initialized',
+      params: {},
+    } as Parameters<FilepadMcpServer['handleMessage']>[0]);
+    expect(response).toBeNull();
+  });
+
+  it('responds to ping', async () => {
+    if (!server) return;
+    const response = await server.handleMessage({
+      jsonrpc: '2.0',
+      id: 6,
+      method: 'ping',
+      params: {},
+    });
+    expect(response).toBeTruthy();
+    assertResponse(response);
+    expect(response.result).toEqual({});
+  });
+
   it('lists tools filtered by scopes', async () => {
     if (!server) return;
     const response = await server.handleMessage({
@@ -112,7 +136,7 @@ describe('FilepadMcpServer integration', () => {
     const health = JSON.parse(content[0]?.text ?? '{}') as Record<string, unknown>;
     expect(health['status']).toBe('ok');
     expect(health['workspaceId']).toBe(config?.workspaceId);
-    expect(health['version']).toBe('0.1.0');
+    expect(health['version']).toBe(FILEPAD_MCP_SERVER_VERSION);
   });
 
   it('lists resources', async () => {
@@ -168,6 +192,22 @@ describe('FilepadMcpServer error handling', () => {
     assertResponse(response);
     expect(response.error).toBeTruthy();
     expect(response.error?.code).toBe(-32601);
+  });
+
+  it('does not respond to unknown notifications', async () => {
+    const badServer = new FilepadMcpServer({
+      baseUrl: 'http://localhost:3000',
+      workspaceId: 'ws_test',
+      keyId: 'ik_test',
+      secret: 'secret_test',
+    });
+
+    const response = await badServer.handleMessage({
+      jsonrpc: '2.0',
+      method: 'notifications/cancelled',
+      params: {},
+    } as Parameters<FilepadMcpServer['handleMessage']>[0]);
+    expect(response).toBeNull();
   });
 });
 

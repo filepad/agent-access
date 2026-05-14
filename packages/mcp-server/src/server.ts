@@ -23,19 +23,29 @@ export interface FilepadMcpServerConfig {
 
 // ── Custom discriminated request types (MCP SDK unions method as string) ──
 
-interface McpRequest {
+interface McpMethodMessage {
   jsonrpc: '2.0';
-  id: string | number;
   method: string;
   params?: Record<string, unknown>;
 }
 
-function isMcpRequest(msg: JSONRPCMessage): msg is McpRequest {
+interface McpRequest extends McpMethodMessage {
+  id: string | number;
+}
+
+function isMcpMethodMessage(msg: JSONRPCMessage): msg is McpMethodMessage {
   return (
     typeof msg === 'object' &&
     msg !== null &&
     'method' in msg &&
     typeof msg.method === 'string'
+  );
+}
+
+function isMcpRequest(msg: McpMethodMessage): msg is McpRequest {
+  return (
+    'id' in msg &&
+    (typeof msg.id === 'string' || typeof msg.id === 'number')
   );
 }
 
@@ -65,14 +75,24 @@ export class FilepadMcpServer {
   async handleMessage(
     message: JSONRPCMessage,
   ): Promise<JSONRPCMessage | JSONRPCMessage[] | null> {
-    if (!isMcpRequest(message)) {
+    if (!isMcpMethodMessage(message)) {
       return null; // Response, not request
+    }
+
+    // MCP uses JSON-RPC notifications such as notifications/initialized.
+    // Notifications have no id and must not receive a response.
+    if (!isMcpRequest(message)) {
+      return null;
     }
 
     const { id, method } = message;
 
     try {
       switch (method) {
+        case 'ping': {
+          return { jsonrpc: '2.0', id, result: {} };
+        }
+
         case 'initialize': {
           const result = await handleInitialize();
           return { jsonrpc: '2.0', id, result };
