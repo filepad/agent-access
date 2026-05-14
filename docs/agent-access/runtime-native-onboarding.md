@@ -20,9 +20,55 @@ bridge.
 
 Every first-class external-agent setup should provide both:
 
-1. MCP configuration for `@filepad/mcp-server`.
-2. Runtime-native instructions that tell the agent to call `filepad_bootstrap`
+1. Pre-MCP pairing through `@filepad/agent-connect`.
+2. MCP configuration for `@filepad/mcp-server`.
+3. Runtime-native instructions that tell the agent to call `filepad_bootstrap`
    first and treat Filepad as the workspace source of truth.
+
+## Pairing Before MCP Exists
+
+MCP cannot be the entry point because the host runtime may not have loaded the
+Filepad MCP server yet. The first-class flow is:
+
+```bash
+npx -y @filepad/agent-connect pair ABC12345 --runtime openclaw
+```
+
+The CLI writes the host config, emits structured JSON for automation, and prints
+a concise handoff for the current agent session. After the host restarts or
+reloads MCP, the agent calls `filepad_bootstrap` for the full tool manifest and
+workspace context.
+
+Runtime-specific config shape matters. OpenClaw expects Filepad at
+`mcp.servers.filepad`; generic MCP clients commonly expect
+`mcpServers.filepad`. `@filepad/agent-connect` must write the correct shape for
+the selected `--runtime`.
+
+Agents must also have a non-MCP recovery path. The backend exposes public
+health/discovery probes at `/agent-api/v1/health` and
+`/agent-api/v1/discovery`, plus an authenticated HTTP bootstrap fallback at
+`/agent-api/v1/workspaces/{workspaceId}/bootstrap`. The MCP server also supports
+`filepad-mcp-server --health`, `--bootstrap`, and `--tools` when launched
+directly with the same environment variables.
+Use `filepad-mcp-server --tools --with-schemas` to inspect parameters and
+`filepad-mcp-server --call <toolName> --args '{}'` to test one tool without
+writing a JSON-RPC client.
+
+The restart/reload handoff is a successful intermediate state. Agents should not
+treat missing native Filepad tools in the same session as a pairing failure.
+Instead, report that pairing succeeded, the MCP config was written, and the host
+must restart or reload MCP before `filepad_bootstrap` can appear. The structured
+state is:
+
+```json
+{
+  "paired": true,
+  "configWritten": true,
+  "nativeToolsAvailable": false,
+  "requiresHostRestart": true,
+  "afterRestartTool": "filepad_bootstrap"
+}
+```
 
 ## Required Startup Ritual
 

@@ -1,0 +1,57 @@
+{
+  "name": "@filepad/agent-connect",
+  "version": "0.1.13",
+  "description": "Pre-MCP pairing CLI for Filepad Agent Access runtimes.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "filepad-agent-connect": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "pack:check": "node ../../scripts/ci/check-package-pack.mjs"
+  },
+  "keywords": [
+    "filepad",
+    "agent",
+    "mcp",
+    "openclaw",
+    "claude"
+  ],
+  "author": "Filepad <support@filepad.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filepad/agent-access.git",
+    "directory": "packages/agent-connect"
+  },
+  "bugs": {
+    "url": "https://github.com/filepad/agent-access/issues"
+  },
+  "homepage": "https://github.com/filepad/agent-access#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

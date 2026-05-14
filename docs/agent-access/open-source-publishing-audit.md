@@ -5,6 +5,8 @@ Status: active release gate for the public Agent Access surface.
 ## Public In V1
 
 - `@filepad/agent-access-sdk`
+- `@filepad/agent-connect`
+- `@filepad/claude-code-hooks`
 - `@filepad/mcp-server`
 - Agent Access documentation under `docs/agent-access`
 - External-agent proof scripts under `scripts/agent-access`
@@ -64,13 +66,15 @@ This runs:
 - public-boundary check
 - SDK typecheck and tests
 - MCP server typecheck and tests
+- Claude Code hook adapter typecheck and tests
+- agent-connect typecheck and tests
 - package tarball checks
 - clean-install proof
 
 For a live staging proof, set fresh Agent Access credentials and run:
 
 ```bash
-FILEPAD_BASE_URL=https://app.filepad.ai/api \
+FILEPAD_BASE_URL=https://api.filepad.ai \
 FILEPAD_WORKSPACE_ID=ws_... \
 FILEPAD_AGENT_KEY_ID=ik_... \
 FILEPAD_AGENT_SECRET=... \
@@ -101,5 +105,7 @@ Public packages must:
 
 1. `@filepad/agent-access-sdk`
 2. `@filepad/mcp-server`
+3. `@filepad/claude-code-hooks`
+4. `@filepad/agent-connect`
 
 Do not publish `@filepad/contracts` in this release.

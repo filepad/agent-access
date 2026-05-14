@@ -6,7 +6,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { handleCallTool, handleListTools } from '../src/handlers.js';
+import { handleCallTool, handleListTools, compactBootstrapForAgent } from '../src/handlers.js';
 import { FilepadMcpServer } from '../src/server.js';
 
 function getTestConfig() {
@@ -69,7 +69,7 @@ describe('FilepadMcpServer integration', () => {
     const result = response.result as Record<string, unknown>;
     const serverInfo = result['serverInfo'] as Record<string, string>;
     expect(serverInfo['name']).toBe('filepad');
-    expect(result['instructions']).toContain('filepad_connect');
+    expect(result['instructions']).toContain('filepad_bootstrap');
   });
 
   it('lists tools filtered by scopes', async () => {
@@ -88,9 +88,9 @@ describe('FilepadMcpServer integration', () => {
     expect(Array.isArray(tools)).toBe(true);
     expect(tools.length).toBeGreaterThan(0);
     expect(tools.map((t) => t.name)).toContain('filepad_search');
-    expect(tools.map((t) => t.name)).toContain('filepad_connect');
     expect(tools.map((t) => t.name)).toContain('filepad_bootstrap');
     expect(tools.map((t) => t.name)).toContain('filepad_health');
+    expect(tools.map((t) => t.name)).toContain('filepad_describe_tool');
   });
 
   it('handles health tool call', async () => {
@@ -193,7 +193,8 @@ describe('MCP tool calls', () => {
 
     expect(result.tools.map((tool) => tool.name)).toEqual(
       expect.arrayContaining([
-        'filepad_connect',
+        'filepad_bootstrap',
+        'filepad_describe_tool',
         'filepad_health',
         'filepad_search',
         'filepad_create_artifact_from_file',
@@ -202,7 +203,7 @@ describe('MCP tool calls', () => {
     );
   });
 
-  it('returns connect diagnostics through filepad_connect', async () => {
+  it('returns compact diagnostics through filepad_connect (compatibility alias)', async () => {
     const client = {
       connect: async () => ({
         status: 'ok',
@@ -219,27 +220,37 @@ describe('MCP tool calls', () => {
           kind: 'personal',
           ownerName: 'Test Owner',
           ownerTimezone: 'UTC',
-          installedKits: [],
         },
         scopes: ['env:read'],
         recommendedScopes: [],
         tools: [],
         bootstrap: {
           summary: 'Connected',
-          startupPrompt: 'Call filepad_get_constitution.',
+          startupPrompt: 'Filepad is your governed workspace.',
           suggestedFirstActions: ['Call filepad_get_constitution.'],
-          availableToolGroups: [
-            {
-              group: 'bootstrap',
-              purpose: 'Start work.',
-              tools: ['filepad_connect', 'filepad_bootstrap'],
+          operatingBrief: {
+            product: 'Filepad is a governed workspace.',
+            permissions: {
+              canReadWorkspace: true,
+              canCreateArtifacts: false,
+              canCreateFolders: false,
+              canProposeEdits: false,
+              externalActionsMayRequireApproval: true,
             },
+            territory: {
+              read: ['*'], write: ['*'], propose: ['*'],
+              offLimits: ['.filepad/'], rule: 'Propose edits.',
+            },
+            contracts: [],
+            assignment: null,
+            pendingApprovals: 0,
+            mailboxUnread: 0,
+            suggestedAction: null,
+          },
+          quickReference: [],
+          availableToolGroups: [
+            { group: 'bootstrap', purpose: 'Start work.', tools: ['filepad_bootstrap'] },
           ],
-        },
-        agentHome: {
-          status: 'ready',
-          folderPath: 'agents/integrations/ik_test',
-          files: [],
         },
         mailbox: { unreadCount: 0, recent: [] },
         recentOutcomes: [],
@@ -248,33 +259,20 @@ describe('MCP tool calls', () => {
     } as unknown as FilepadAgentClient;
 
     const result = await handleCallTool(
-      {
-        params: {
-          name: 'filepad_connect',
-          arguments: {},
-        },
-      },
-      {
-        client,
-        workspaceId: 'ws_test',
-        scopes: [],
-      },
+      { params: { name: 'filepad_connect', arguments: {} } },
+      { client, workspaceId: 'ws_test', scopes: [] },
     );
 
     const content = result.content as Array<{ text: string }>;
-    expect(JSON.parse(content[0]?.text ?? '{}')).toMatchObject({
-      status: 'ok',
-      agent: { keyId: 'ik_test' },
-      bootstrap: {
-        suggestedFirstActions: ['Call filepad_get_constitution.'],
-      },
-      agentHome: { status: 'ready' },
-    });
+    const parsed = JSON.parse(content[0]?.text ?? '{}');
+    expect(parsed.status).toBe('ok');
+    expect(parsed.bootstrap.operatingBrief.product).toBe('Filepad is a governed workspace.');
+    expect(parsed.tools).toBeUndefined();
   });
 
-  it('returns the same connect diagnostics through filepad_bootstrap', async () => {
+  it('returns the compact bootstrap shape with operatingBrief through filepad_bootstrap', async () => {
     const client = {
-      connect: async () => ({
+      bootstrap: async () => ({
         status: 'ok',
         checkedAt: new Date(0).toISOString(),
         agent: {
@@ -289,27 +287,65 @@ describe('MCP tool calls', () => {
           kind: 'personal',
           ownerName: 'Test Owner',
           ownerTimezone: 'UTC',
-          installedKits: [],
         },
         scopes: ['env:read'],
         recommendedScopes: [],
-        tools: [],
+        tools: [
+          {
+            providerName: 'workspace_search',
+            displayName: 'Search workspace',
+            description: 'Search files',
+            inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+            outputSchema: { type: 'object' },
+            capabilityScope: 'workspace',
+            capabilityType: 'read',
+            riskLevel: 'low',
+            approvalPolicy: 'auto',
+            minimumWorkspaceRole: 'viewer',
+            requiredScopes: ['tools:call', 'env:read'],
+            mutates: { artifacts: false, fileNodes: false, externalNetwork: false, secrets: false },
+            requiresConnection: false,
+            integrationProvider: 'filepad',
+          },
+        ],
         bootstrap: {
           summary: 'Connected',
-          startupPrompt: 'Call filepad_get_constitution.',
+          startupPrompt: 'Filepad is your governed workspace.',
           suggestedFirstActions: ['Call filepad_get_constitution.'],
+          operatingBrief: {
+            product: 'Filepad is a governed workspace for agent work.',
+            permissions: {
+              canReadWorkspace: true,
+              canCreateArtifacts: false,
+              canCreateFolders: false,
+              canProposeEdits: false,
+              externalActionsMayRequireApproval: true,
+            },
+            territory: {
+              read: ['*'],
+              write: ['*'],
+              propose: ['*'],
+              offLimits: ['.filepad/'],
+              rule: 'Propose edits.',
+            },
+            contracts: [],
+            assignment: null,
+            pendingApprovals: 0,
+            mailboxUnread: 0,
+            suggestedAction: {
+              label: 'Create a contract from your brief.',
+              tool: 'filepad_create_contract',
+              reason: 'No active contracts exist.',
+            },
+          },
+          quickReference: [],
           availableToolGroups: [
             {
               group: 'bootstrap',
               purpose: 'Start work.',
-              tools: ['filepad_connect', 'filepad_bootstrap'],
+              tools: ['filepad_bootstrap'],
             },
           ],
-        },
-        agentHome: {
-          status: 'ready',
-          folderPath: 'agents/integrations/ik_test',
-          files: [],
         },
         mailbox: { unreadCount: 0, recent: [] },
         recentOutcomes: [],
@@ -332,14 +368,94 @@ describe('MCP tool calls', () => {
     );
 
     const content = result.content as Array<{ text: string }>;
-    expect(JSON.parse(content[0]?.text ?? '{}')).toMatchObject({
-      status: 'ok',
-      bootstrap: {
-        availableToolGroups: [
-          expect.objectContaining({ group: 'bootstrap' }),
-        ],
-      },
+    const parsed = JSON.parse(content[0]?.text ?? '{}');
+
+    // Compact shape: operatingBrief present with all fields
+    expect(parsed.bootstrap.operatingBrief).toBeDefined();
+    expect(parsed.bootstrap.operatingBrief.product).toBe('Filepad is a governed workspace for agent work.');
+    expect(parsed.bootstrap.operatingBrief.permissions).toEqual({
+      canReadWorkspace: true,
+      canCreateArtifacts: false,
+      canCreateFolders: false,
+      canProposeEdits: false,
+      externalActionsMayRequireApproval: true,
     });
+    expect(parsed.bootstrap.operatingBrief.contracts).toEqual([]);
+    expect(parsed.bootstrap.operatingBrief.assignment).toBeNull();
+    expect(parsed.bootstrap.operatingBrief.pendingApprovals).toBe(0);
+    expect(parsed.bootstrap.operatingBrief.mailboxUnread).toBe(0);
+    expect(parsed.bootstrap.operatingBrief.suggestedAction).toEqual({
+      label: 'Create a contract from your brief.',
+      tool: 'filepad_create_contract',
+      reason: 'No active contracts exist.',
+    });
+
+    // Compact shape: full tools array is stripped
+    expect(parsed.tools).toBeUndefined();
+
+    // Compact shape: availableToolGroups only has group + purpose (no tools arrays)
+    const groups = parsed.bootstrap.availableToolGroups;
+    expect(groups).toEqual([
+      { group: 'bootstrap', purpose: 'Start work.' },
+    ]);
+  });
+
+  it('reports all missing propose_edit fields and accepts content as a newText alias', async () => {
+    const proposeCalls: unknown[] = [];
+    const client = {
+      proposeEdit: async (params: unknown) => {
+        proposeCalls.push(params);
+        return { proposalId: 'p_1' };
+      },
+    } as unknown as FilepadAgentClient;
+
+    await expect(
+      handleCallTool(
+        {
+          params: {
+            name: 'filepad_propose_edit',
+            arguments: {
+              fileNodeId: 'fn_1',
+              content: 'Updated text',
+            },
+          },
+        },
+        {
+          client,
+          workspaceId: 'ws_test',
+          scopes: ['files:propose'],
+        },
+      ),
+    ).rejects.toThrow(/baseVersionId, summary/);
+
+    const result = await handleCallTool(
+      {
+        params: {
+          name: 'filepad_propose_edit',
+          arguments: {
+            fileNodeId: 'fn_1',
+            baseVersionId: 'av_1',
+            summary: 'Update text',
+            content: 'Updated text',
+          },
+        },
+      },
+      {
+        client,
+        workspaceId: 'ws_test',
+        scopes: ['files:propose'],
+      },
+    );
+
+    expect(proposeCalls).toEqual([
+      {
+        fileNodeId: 'fn_1',
+        baseVersionId: 'av_1',
+        summary: 'Update text',
+        newText: 'Updated text',
+      },
+    ]);
+    expect(result.content).toBeTruthy();
   });
 
   it('forwards backend canonical RuntimeTool calls that are not local registry tools', async () => {

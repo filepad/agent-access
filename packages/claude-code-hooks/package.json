@@ -1,0 +1,66 @@
+{
+  "name": "@filepad/claude-code-hooks",
+  "version": "0.1.1",
+  "description": "Filepad Claude Code hook adapter — PreToolUse/PostToolUse/Stop hooks for live contract enforcement.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "filepad-claude-code-hook": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "pnpm -C ../agent-access-sdk build",
+    "pretest": "pnpm -C ../agent-access-sdk build",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "pack:check": "node ../../scripts/ci/check-package-pack.mjs"
+  },
+  "keywords": [
+    "filepad",
+    "claude-code-hooks",
+    "claude-code",
+    "active-contracts",
+    "enforcement"
+  ],
+  "author": "Filepad <support@filepad.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filepad/agent-access.git",
+    "directory": "packages/claude-code-hooks"
+  },
+  "bugs": {
+    "url": "https://github.com/filepad/agent-access/issues"
+  },
+  "homepage": "https://github.com/filepad/agent-access#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@filepad/agent-access-sdk": "^0.1.5"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

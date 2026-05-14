@@ -1,7 +1,7 @@
 import { FilepadAgentClient } from '@filepad/agent-access-sdk';
 
 const client = new FilepadAgentClient({
-  baseUrl: process.env.FILEPAD_BASE_URL ?? 'https://app.filepad.ai/api',
+  baseUrl: process.env.FILEPAD_BASE_URL ?? 'https://api.filepad.ai',
   workspaceId: process.env.FILEPAD_WORKSPACE_ID ?? '',
   keyId: process.env.FILEPAD_AGENT_KEY_ID ?? '',
   secret: process.env.FILEPAD_AGENT_SECRET ?? '',

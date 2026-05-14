@@ -5,6 +5,7 @@
  * This is intentionally narrower than the full monorepo. It protects the
  * open-source/package boundary for:
  * - packages/agent-access-sdk
+ * - packages/agent-connect
  * - packages/mcp-server
  * - docs/agent-access
  */
@@ -14,7 +15,12 @@ import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 
 const ROOT = process.cwd();
-const PUBLIC_PACKAGES = ['packages/agent-access-sdk', 'packages/mcp-server'];
+const PUBLIC_PACKAGES = [
+  'packages/agent-access-sdk',
+  'packages/agent-connect',
+  'packages/claude-code-hooks',
+  'packages/mcp-server',
+];
 const PUBLIC_DOCS = ['docs/agent-access'];
 const PUBLIC_EXAMPLES = ['examples'];
 const PRIVATE_FILEPAD_DEPS = new Set([
@@ -59,7 +65,19 @@ function listFiles(paths) {
   const existing = paths.filter((path) => existsSync(join(ROOT, path)));
   if (existing.length === 0) return [];
   const quoted = existing.map((path) => `"${path}"`).join(' ');
-  const output = execSync(`find ${quoted} -type f`, { cwd: ROOT, encoding: 'utf8' }).trim();
+  let output = '';
+  try {
+    output = execSync(`git ls-files -- ${quoted}`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    output = '';
+  }
+  if (!output) {
+    output = execSync(`find ${quoted} -type f`, { cwd: ROOT, encoding: 'utf8' }).trim();
+  }
   return output ? output.split('\n') : [];
 }
 
@@ -90,9 +108,15 @@ function checkPackageMetadata(packageDir) {
     ...pkg.peerDependencies,
     ...pkg.optionalDependencies,
   };
-  for (const depName of Object.keys(deps)) {
+  for (const [depName, depVersion] of Object.entries(deps)) {
     if (PRIVATE_FILEPAD_DEPS.has(depName)) {
       fail(`${packageDir} depends on private package ${depName}`);
+    }
+    if (typeof depVersion === 'string' && depVersion.includes('workspace:')) {
+      fail(
+        `${packageDir} dependency ${depName} uses workspace protocol (${depVersion}); ` +
+          'public packages must be publish-safe with npm publish',
+      );
     }
   }
 }

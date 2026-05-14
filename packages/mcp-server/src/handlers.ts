@@ -24,7 +24,11 @@ import type {
   GetProfileArgs,
   UpdateProfileArgs,
   ConstitutionArgs,
+  DescribeToolArgs,
+  CreateContractArgs,
+  UpdateContractArgs,
   AgentProfileField,
+  GetContractStatusArgs,
 } from './tool-registry.js';
 
 export interface McpHandlerContext {
@@ -40,6 +44,20 @@ function assertString(value: unknown, field: string): string {
     throw new Error(`Missing or invalid required field: ${field}`);
   }
   return value;
+}
+
+function requiredStringFields(
+  args: Record<string, unknown>,
+  fields: string[],
+): string[] {
+  return fields.filter((field) => {
+    const value = args[field];
+    return typeof value !== 'string' || value.length === 0;
+  });
+}
+
+function formatExpectedShape(fields: string[]): string {
+  return `{ ${fields.map((field) => `"${field}": "..."`).join(', ')} }`;
 }
 
 function assertOptionalString(value: unknown): string | undefined {
@@ -155,14 +173,33 @@ function inferArtifactFormatFromPath(path: string): CreateArtifactArgs['format']
 
 function parseProposeEditArgs(args: unknown): ProposeEditArgs {
   if (!args || typeof args !== 'object') {
-    throw new Error('Missing arguments for filepad_propose_edit');
+    throw new Error(
+      'Missing arguments for filepad_propose_edit. Expected: ' +
+        formatExpectedShape(['fileNodeId', 'baseVersionId', 'summary', 'newText']),
+    );
   }
   const a = args as Record<string, unknown>;
+  const newText = a['newText'] ?? a['content'];
+  const missing = requiredStringFields(
+    { ...a, newText },
+    ['fileNodeId', 'baseVersionId', 'summary', 'newText'],
+  );
+  if (missing.length > 0) {
+    const contentHint =
+      a['content'] !== undefined && a['newText'] === undefined
+        ? ' Received "content"; using "newText" is preferred.'
+        : '';
+    throw new Error(
+      `Invalid filepad_propose_edit arguments. Missing or invalid required fields: ${missing.join(', ')}. ` +
+        `Expected: ${formatExpectedShape(['fileNodeId', 'baseVersionId', 'summary', 'newText'])}.` +
+        contentHint,
+    );
+  }
   return {
-    fileNodeId: assertString(a['fileNodeId'], 'fileNodeId'),
-    baseVersionId: assertString(a['baseVersionId'], 'baseVersionId'),
-    summary: assertString(a['summary'], 'summary'),
-    newText: assertString(a['newText'], 'newText'),
+    fileNodeId: a['fileNodeId'] as string,
+    baseVersionId: a['baseVersionId'] as string,
+    summary: a['summary'] as string,
+    newText: newText as string,
   };
 }
 
@@ -301,6 +338,136 @@ function parseConstitutionArgs(args: unknown): ConstitutionArgs {
   };
 }
 
+function parseGetContractStatusArgs(args: unknown): GetContractStatusArgs {
+  if (!args || typeof args !== 'object') {
+    throw new Error('Missing arguments for filepad_get_contract_status');
+  }
+  const a = args as Record<string, unknown>;
+  return {
+    contractId: assertString(a['contractId'], 'contractId'),
+  };
+}
+
+function parseCreateContractArgs(args: unknown): CreateContractArgs {
+  if (!args || typeof args !== 'object') {
+    throw new Error('Missing arguments for filepad_create_contract');
+  }
+  const a = args as Record<string, unknown>;
+  return {
+    sourceText: assertString(a['sourceText'], 'sourceText'),
+  };
+}
+
+function parseUpdateContractArgs(args: unknown): UpdateContractArgs {
+  if (!args || typeof args !== 'object') {
+    throw new Error('Missing arguments for filepad_update_contract');
+  }
+  const a = args as Record<string, unknown>;
+  return {
+    sourceText: assertString(a['sourceText'], 'sourceText'),
+  };
+}
+
+function parseDescribeToolArgs(args: unknown): DescribeToolArgs {
+  if (!args || typeof args !== 'object') {
+    throw new Error('Missing arguments for filepad_describe_tool');
+  }
+  const a = args as Record<string, unknown>;
+  return {
+    toolName: assertString(a['toolName'], 'toolName'),
+  };
+}
+
+function requiredFieldsFromSchema(schema: Record<string, unknown>): string[] {
+  const required = schema['required'];
+  return Array.isArray(required)
+    ? required.filter((field): field is string => typeof field === 'string')
+    : [];
+}
+
+function toolSignature(params: {
+  name: string;
+  inputSchema: Record<string, unknown>;
+}): string {
+  const required = requiredFieldsFromSchema(params.inputSchema);
+  return required.length === 0
+    ? `${params.name}()`
+    : `${params.name}(${required.join(', ')})`;
+}
+
+function addMcpQuickReference(
+  result: unknown,
+  scopes: AgentAccessScope[],
+): unknown {
+  if (!result || typeof result !== 'object') return result;
+  const body = result as Record<string, unknown>;
+  const bootstrap = body['bootstrap'];
+  if (!bootstrap || typeof bootstrap !== 'object' || Array.isArray(bootstrap)) {
+    return result;
+  }
+  const bootstrapBody = bootstrap as Record<string, unknown>;
+  const existing = Array.isArray(bootstrapBody['quickReference'])
+    ? bootstrapBody['quickReference']
+    : [];
+  const local = listToolsForScopes(scopes).map((tool) => ({
+    toolName: tool.name,
+    signature: toolSignature({
+      name: tool.name,
+      inputSchema: tool.inputSchema,
+    }),
+    requiredScopes: tool.requiredScopes,
+  }));
+  bootstrapBody['quickReference'] = [...local, ...existing];
+  return body;
+}
+
+export function compactBootstrapForAgent(
+  result: unknown,
+  scopes: AgentAccessScope[],
+): unknown {
+  const body = addMcpQuickReference(result, scopes);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const record = body as Record<string, unknown>;
+  const bootstrap = record['bootstrap'];
+  if (!bootstrap || typeof bootstrap !== 'object' || Array.isArray(bootstrap)) {
+    return record;
+  }
+  const bootstrapRecord = bootstrap as Record<string, unknown>;
+  const mailbox = record['mailbox'];
+  const compactMailbox =
+    mailbox && typeof mailbox === 'object' && !Array.isArray(mailbox)
+      ? { unreadCount: (mailbox as Record<string, unknown>)['unreadCount'] ?? 0 }
+      : undefined;
+  const groups = Array.isArray(bootstrapRecord['availableToolGroups'])
+    ? bootstrapRecord['availableToolGroups'].map((group) => {
+        if (!group || typeof group !== 'object' || Array.isArray(group)) return group;
+        const groupRecord = group as Record<string, unknown>;
+        return {
+          group: groupRecord['group'],
+          purpose: groupRecord['purpose'],
+        };
+      })
+    : [];
+
+  return {
+    status: record['status'],
+    checkedAt: record['checkedAt'],
+    workspace: record['workspace'],
+    agent: record['agent'],
+    scopes: record['scopes'],
+    bootstrap: {
+      summary: bootstrapRecord['summary'],
+      startupPrompt: bootstrapRecord['startupPrompt'],
+      operatingBrief: bootstrapRecord['operatingBrief'],
+      suggestedFirstActions: bootstrapRecord['suggestedFirstActions'],
+      quickReference: bootstrapRecord['quickReference'],
+      availableToolGroups: groups,
+    },
+    ...(compactMailbox ? { mailbox: compactMailbox } : {}),
+    diagnostics: record['diagnostics'],
+  };
+}
+
 export async function handleInitialize() {
   return {
     protocolVersion: '2024-11-05',
@@ -310,7 +477,7 @@ export async function handleInitialize() {
       prompts: {},
     },
     instructions:
-      'Filepad is an agent-first workspace. Call filepad_connect or filepad_bootstrap before any other Filepad tool. The response includes identity, workspace, scopes, available RuntimeTools, agent home, mailbox, recent outcomes, missing permissions, and suggested first actions.',
+      'Filepad is an agent-first workspace. Call filepad_bootstrap before any other Filepad tool. The response includes the compact operating brief: permissions, active contracts, assignment, mailbox count, and the next useful action.',
     serverInfo: {
       name: 'filepad',
       version: FILEPAD_MCP_SERVER_VERSION,
@@ -346,6 +513,25 @@ export async function handleCallTool(
 ) {
   const req = request as { params: { name: string; arguments?: unknown } };
   const { name, arguments: args } = req.params;
+
+  // Backward-compatible hidden alias. New agents should use filepad_bootstrap;
+  // filepad_connect is intentionally no longer advertised in tools/list.
+  if (name === 'filepad_connect') {
+    const result = await ctx.client.connect();
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            compactBootstrapForAgent(result, ctx.scopes),
+            null,
+            2,
+          ),
+        },
+      ],
+    };
+  }
+
   const tool = findTool(name);
   if (!tool) {
     const result = await ctx.client.callTool({
@@ -386,11 +572,56 @@ export async function handleCallTool(
       };
     }
 
-    case 'filepad_connect':
-    case 'filepad_bootstrap': {
-      const result = await ctx.client.connect();
+    case 'filepad_describe_tool': {
+      const parsed = parseDescribeToolArgs(args);
+      const localTool = findTool(parsed.toolName);
+      if (localTool) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  name: localTool.name,
+                  description: localTool.description,
+                  inputSchema: localTool.inputSchema,
+                  requiredScopes: localTool.requiredScopes,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+
+      const listed = await ctx.client.listTools();
+      const runtimeTool = listed.tools.find(
+        (tool) =>
+          tool.providerName === parsed.toolName ||
+          tool.name === parsed.toolName,
+      );
+      if (!runtimeTool) {
+        throw new Error(`Unknown Filepad tool: ${parsed.toolName}`);
+      }
       return {
-        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(runtimeTool, null, 2) }],
+      };
+    }
+
+    case 'filepad_bootstrap': {
+      const result = await ctx.client.bootstrap();
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              compactBootstrapForAgent(result, ctx.scopes),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
@@ -542,6 +773,66 @@ export async function handleCallTool(
       };
     }
 
+    case 'filepad_list_active_contracts':
+      {
+        const result = await ctx.client.callTool({
+          toolName: 'active_contract.list',
+          input: {},
+        });
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+    case 'filepad_read_active_contract':
+      {
+        const parsed = parseGetContractStatusArgs(args);
+        const result = await ctx.client.callTool({
+          toolName: 'active_contract.read',
+          input: { contractId: parsed.contractId },
+        });
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+    case 'filepad_create_contract': {
+      const parsed = parseCreateContractArgs(args);
+      const result = await ctx.client.createContract(parsed);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case 'filepad_update_contract': {
+      const parsed = parseUpdateContractArgs(args);
+      const result = await ctx.client.createContract(parsed);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case 'filepad_record_contract_evidence': {
+      const result = await ctx.client.callTool({
+        toolName: 'active_contract.record_evidence',
+        input: args,
+      });
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case 'filepad_get_contract_status': {
+      const parsed = parseGetContractStatusArgs(args);
+      const result = await ctx.client.callTool({
+        toolName: 'active_contract.status',
+        input: { contractId: parsed.contractId },
+      });
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
     default:
       throw new Error(`Unhandled tool: ${name}`);
   }
@@ -576,7 +867,7 @@ export async function handleListResources(
             name: 'constitution',
             mimeType: 'application/json',
             description:
-              'Workspace constitution — authoritative identity document for this external agent',
+              'Workspace operating context — permissions, rules, and configuration for this agent',
           },
           {
             uri: `filepad://workspace/${ctx.workspaceId}/environment`,

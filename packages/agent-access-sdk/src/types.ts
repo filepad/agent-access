@@ -76,7 +76,6 @@ export interface AgentConnectDiagnosticsResponse {
     kind: 'personal' | 'shared';
     ownerName: string;
     ownerTimezone: string;
-    installedKits: string[];
   };
   scopes: AgentAccessScope[];
   recommendedScopes: AgentConnectScopeStatus[];
@@ -85,20 +84,53 @@ export interface AgentConnectDiagnosticsResponse {
     summary: string;
     startupPrompt: string;
     suggestedFirstActions: string[];
+    operatingBrief: {
+      product: string;
+      permissions: WorkspacePermissions;
+      /** @deprecated Replaced by permissions. Kept for backward compatibility. */
+      territory: {
+        read: string[];
+        write: string[];
+        propose: string[];
+        offLimits: string[];
+        rule: string;
+      };
+      contracts: Array<{
+        contractId: string;
+        name: string;
+        lifecycleStatus: string;
+        verificationStatus: string | null;
+        doneWhen: {
+          passing: number;
+          total: number;
+          complete: boolean;
+        } | null;
+      }>;
+      assignment: {
+        type: 'create_contract_from_brief' | 'work_contract' | 'answer_question' | 'unknown';
+        source:
+          | { type: 'local_file'; path: string; readableByAgentHost: boolean }
+          | { type: 'filepad_artifact'; artifactId: string; versionId?: string }
+          | { type: 'github_url'; url: string }
+          | { type: 'uploaded_brief'; artifactId: string }
+          | { type: 'inline_text'; content: string }
+          | null;
+        expectedAction: string;
+        stopWhen: string;
+      } | null;
+      pendingApprovals: number;
+      mailboxUnread: number;
+      suggestedAction: {
+        label: string;
+        tool: string | null;
+        reason: string | null;
+      } | null;
+    };
+    quickReference: AgentToolQuickReference[];
     availableToolGroups: Array<{
       group: string;
       purpose: string;
       tools: string[];
-    }>;
-  };
-  agentHome: {
-    status: 'ready' | 'missing';
-    folderPath: string;
-    files: Array<{
-      path: string;
-      fileNodeId: string | null;
-      artifactId: string | null;
-      status: 'ready' | 'missing';
     }>;
   };
   mailbox: {
@@ -110,6 +142,12 @@ export interface AgentConnectDiagnosticsResponse {
     warnings: string[];
     nextRecommendedActions: string[];
   };
+}
+
+export interface AgentToolQuickReference {
+  toolName: string;
+  signature: string;
+  requiredScopes: AgentAccessScope[];
 }
 
 export interface GetAgentApiEnvironmentResponse {
@@ -217,6 +255,34 @@ export interface CallAgentToolResponse {
     toolCallId: string;
     policyDecision: 'allow';
   };
+}
+
+export interface CreateContractRequest {
+  sourceText: string;
+}
+
+export interface CreateContractResponse {
+  contractId: string;
+  status: 'active' | 'pending_approval';
+  message: string;
+}
+
+export interface GetContractStatusRequest {
+  contractId: string;
+}
+
+export interface GetContractStatusResponse {
+  contractId: string;
+  name: string;
+  lifecycleStatus: string;
+  verificationStatus: 'complete' | 'incomplete' | 'failing' | 'stale' | 'unverifiable';
+  doneWhen: {
+    passing: number;
+    total: number;
+    complete: boolean;
+  };
+  pendingApproval: boolean;
+  checks: Array<{ checkId: string; status: string }>;
 }
 
 export interface GmailSearchToolInput {
@@ -399,15 +465,15 @@ export type AgentProfileField =
 
 export interface AgentProfileFile {
   field: AgentProfileField;
-  path: string;
-  fileNodeId: string;
-  artifactId: string | null;
-  baseVersionId: string | null;
-  text: string;
+  available: boolean;
+  source: 'workspace_metadata';
+  content: Record<string, unknown> | null;
+  unavailableReason: string | null;
 }
 
 export interface AgentProfile {
   keyId: string;
+  source: 'workspace_metadata';
   files: Partial<Record<AgentProfileField, AgentProfileFile>>;
 }
 
@@ -427,7 +493,7 @@ export interface UpdateAgentProfileResponse {
 }
 
 export interface FilepadAgentClientConfig {
-  /** Base URL of the Filepad backend, e.g. https://app.filepad.ai/api */
+  /** Base URL of the Filepad backend, e.g. https://api.filepad.ai */
   baseUrl: string;
   /** Workspace id, e.g. ws_... */
   workspaceId: string;
@@ -450,12 +516,21 @@ export interface SignedRequest {
 
 // ── Constitution types ──
 
+/** @deprecated Replaced by WorkspacePermissions. Kept for backward compatibility. */
 export interface ConstitutionTerritory {
   readPaths: string[];
   writePaths: string[];
   proposePaths: string[];
   offLimits: string[];
   boundaryRule: string;
+}
+
+export interface WorkspacePermissions {
+  canReadWorkspace: boolean;
+  canCreateArtifacts: boolean;
+  canCreateFolders: boolean;
+  canProposeEdits: boolean;
+  externalActionsMayRequireApproval: boolean;
 }
 
 export interface ConstitutionActiveContextPendingItem {
@@ -499,9 +574,10 @@ export interface WorkspaceConstitution {
     workspaceName: string;
     ownerName: string;
     ownerTimezone: string;
-    installedKits: string[];
     role: string;
   };
+  permissions: WorkspacePermissions;
+  /** @deprecated Replaced by permissions. Kept for backward compatibility. */
   territory: ConstitutionTerritory;
   activeContext: ConstitutionActiveContext;
   behavioralRules: ConstitutionBehavioralRule[];

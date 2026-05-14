@@ -37,6 +37,10 @@ import type {
   ListAgentToolsResponse,
   CallAgentToolRequest,
   CallAgentToolResponse,
+  CreateContractRequest,
+  CreateContractResponse,
+  GetContractStatusRequest,
+  GetContractStatusResponse,
   GmailDraftToolInput,
   GmailGetMessageToolInput,
   GmailImportMessageToolInput,
@@ -50,23 +54,6 @@ const AGENT_PROFILE_FIELDS = [
   'goals',
   'timeline',
 ] as const satisfies readonly AgentProfileField[];
-
-function fileNameForProfileField(field: AgentProfileField): string {
-  return `${field}.md`;
-}
-
-function appendAgentProfileEntry(existingText: string, content: string): string {
-  const trimmedContent = content.trim();
-  if (!trimmedContent) return existingText;
-  const entry = [`## ${new Date().toISOString()}`, '', trimmedContent, ''].join('\n');
-  const headingMatch = existingText.match(/^(# .+\n)/);
-  if (!headingMatch || headingMatch.index !== 0) {
-    return `${entry}\n${existingText}`.trimEnd() + '\n';
-  }
-  const heading = headingMatch[1] ?? '';
-  const rest = existingText.slice(heading.length).trimStart();
-  return `${heading}\n${entry}${rest}`.trimEnd() + '\n';
-}
 
 export class FilepadAgentClient {
   private readonly http: FilepadAgentHttpClient;
@@ -88,11 +75,17 @@ export class FilepadAgentClient {
 
   /**
    * One-call agent onboarding/resume probe. Returns identity, workspace, scopes,
-   * available RuntimeTools, agent home state, mailbox, and recent outcomes.
+   * available RuntimeTools, workspace profile state, mailbox, and recent outcomes.
    */
   async connect(): Promise<AgentConnectDiagnosticsResponse> {
     return this.http.get<AgentConnectDiagnosticsResponse>(
       `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/connect`,
+    );
+  }
+
+  async bootstrap(): Promise<AgentConnectDiagnosticsResponse> {
+    return this.http.get<AgentConnectDiagnosticsResponse>(
+      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/bootstrap`,
     );
   }
 
@@ -167,6 +160,22 @@ export class FilepadAgentClient {
       `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/tools/call`,
       params,
     );
+  }
+
+  async createContract(input: CreateContractRequest): Promise<CreateContractResponse> {
+    const result = await this.callTool({
+      toolName: 'active_contract.compile',
+      input: { sourceText: input.sourceText },
+    });
+    return result.output as CreateContractResponse;
+  }
+
+  async getContractStatus(input: GetContractStatusRequest): Promise<GetContractStatusResponse> {
+    const result = await this.callTool({
+      toolName: 'active_contract.status',
+      input: { contractId: input.contractId },
+    });
+    return result.output as GetContractStatusResponse;
   }
 
   async searchGmail(
@@ -271,39 +280,45 @@ export class FilepadAgentClient {
   async getAgentProfile(options?: {
     fields?: AgentProfileField[] | undefined;
   }): Promise<AgentProfile> {
-    const capabilities = await this.getCapabilities();
+    const [capabilities, connection] = await Promise.all([
+      this.getCapabilities(),
+      this.connect(),
+    ]);
     const requestedFields = options?.fields ?? [...AGENT_PROFILE_FIELDS];
-    const tree = await this.getFileTree();
-    const pathById = new Map<string, string>();
-    for (const node of tree.nodes) {
-      if (node.parentId === null) {
-        pathById.set(node.id, node.name);
-        continue;
-      }
-      const parentPath = pathById.get(node.parentId);
-      if (parentPath) pathById.set(node.id, `${parentPath}/${node.name}`);
-    }
-
     const files: Partial<Record<AgentProfileField, AgentProfileFile>> = {};
     for (const field of requestedFields) {
-      const expectedPath = `agents/integrations/${capabilities.agent.keyId}/${fileNameForProfileField(field)}`;
-      const node = tree.nodes.find((candidate) => pathById.get(candidate.id) === expectedPath);
-      if (!node) continue;
-      const file = await this.getFile(node.id);
+      if (field === 'identity') {
+        files[field] = {
+          field,
+          available: true,
+          source: 'workspace_metadata',
+          content: {
+            workspace: connection.workspace,
+            agent: {
+              keyId: capabilities.agent.keyId,
+              integrationId: capabilities.agent.integrationId,
+              workspaceId: capabilities.agent.workspaceId,
+              displayName: connection.agent.displayName,
+              scopes: connection.scopes,
+            },
+          },
+          unavailableReason: null,
+        };
+        continue;
+      }
       files[field] = {
         field,
-        path: expectedPath,
-        fileNodeId: node.id,
-        artifactId: file.artifact?.id ?? null,
-        baseVersionId: file.latestVersion?.id ?? null,
-        text: file.content.kind === 'inlineText'
-          ? (file.content.text ?? '')
-          : '',
+        available: false,
+        source: 'workspace_metadata',
+        content: null,
+        unavailableReason:
+          'No generated profile file exists for this field. Filepad now returns metadata-backed profile data only.',
       };
     }
 
     return {
       keyId: capabilities.agent.keyId,
+      source: 'workspace_metadata',
       files,
     };
   }
@@ -388,43 +403,11 @@ export class FilepadAgentClient {
   }
 
   async updateAgentProfile(
-    params: UpdateAgentProfileRequest,
+    _params: UpdateAgentProfileRequest,
   ): Promise<UpdateAgentProfileResponse> {
-    const mode = params.mode ?? 'append';
-    const profile = await this.getAgentProfile({ fields: [params.field] });
-    const profileFile = profile.files[params.field];
-    if (!profileFile) {
-      throw new Error(
-        `Agent profile file is missing for field: ${params.field}`,
-      );
-    }
-    if (!profileFile.baseVersionId || !profileFile.artifactId) {
-      throw new Error(
-        `Agent profile file is not editable for field: ${params.field}`,
-      );
-    }
-
-    const newText =
-      mode === 'replace'
-        ? params.content
-        : appendAgentProfileEntry(profileFile.text, params.content);
-
-    const proposal = await this.proposeEdit({
-      fileNodeId: profileFile.fileNodeId,
-      baseVersionId: profileFile.baseVersionId,
-      summary: `Update agent ${params.field} profile`,
-      newText,
-      instruction:
-        'Agent profile update requested through filepad_update_profile.',
-      toolName: 'filepad_update_profile',
-    });
-
-    return {
-      ...proposal,
-      field: params.field,
-      mode,
-      status: 'pending_review',
-    };
+    throw new Error(
+      'filepad_update_profile is unavailable because agent profile seed files are no longer provisioned.',
+    );
   }
 
   // ── Proposals ──

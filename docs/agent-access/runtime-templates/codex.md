@@ -31,7 +31,7 @@ Use the standard Filepad MCP config when the Codex host supports MCP:
       "command": "npx",
       "args": ["-y", "@filepad/mcp-server@latest"],
       "env": {
-        "FILEPAD_BASE_URL": "https://app.filepad.ai/api",
+        "FILEPAD_BASE_URL": "https://api.filepad.ai",
         "FILEPAD_WORKSPACE_ID": "ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "FILEPAD_AGENT_KEY_ID": "ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "FILEPAD_AGENT_SECRET": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

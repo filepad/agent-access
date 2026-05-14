@@ -5,7 +5,7 @@ Use this when connecting OpenClaw to Filepad through `@filepad/mcp-server`.
 ## MCP Setup
 
 ```bash
-openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server@latest"],"env":{"FILEPAD_BASE_URL":"https://app.filepad.ai/api","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'
+openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server@latest"],"env":{"FILEPAD_BASE_URL":"https://api.filepad.ai","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'
 ```
 
 ## Native Runtime Instructions
@@ -21,6 +21,29 @@ Use Filepad tools for Filepad-managed workspace files. Do not rely on local file
 For changes, create artifacts or submit proposals through Filepad. Do not directly overwrite workspace files.
 For outbound actions such as email, GitHub mutation, compute, or deletion, use governed RuntimeTools and wait for approval when required.
 When meaningful work is complete, emit a Filepad event so the workspace activity trail shows what happened.
+```
+
+## If Native MCP Tools Are Missing
+
+OpenClaw may show the `filepad` MCP server in config before surfacing the native
+tools in the current agent session. Treat that as a host reload issue, not a
+Filepad pairing failure.
+
+Run these before hand-writing JSON-RPC or HMAC calls:
+
+```bash
+filepad-mcp-server --health
+filepad-mcp-server --tools --with-schemas
+filepad-mcp-server --call filepad_list_tree --args '{}'
+filepad-mcp-server --bootstrap
+```
+
+During setup, the pairing handoff session token can also be used on read-only
+setup endpoints:
+
+```bash
+curl -H "Authorization: Bearer fp_sess_..." \
+  "$FILEPAD_BASE_URL/agent-api/v1/workspaces/$FILEPAD_WORKSPACE_ID/bootstrap"
 ```
 
 ## First Message

@@ -56,13 +56,13 @@ OAuth 2.0 / OIDC and Device Authorization Grant (QR flow) are **future work** an
 Set these in your agent runtime environment:
 
 ```bash
-export FILEPAD_BASE_URL="https://app.filepad.ai/api"
+export FILEPAD_BASE_URL="https://api.filepad.ai"
 export FILEPAD_WORKSPACE_ID="ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export FILEPAD_AGENT_KEY_ID="ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export FILEPAD_AGENT_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
-- `FILEPAD_BASE_URL` — Filepad API base (include `/api`)
+- `FILEPAD_BASE_URL` — Filepad API origin, for example `https://api.filepad.ai` (do not use the browser app origin and do not add `/api`)
 - `FILEPAD_WORKSPACE_ID` — the workspace you want the agent to access
 - `FILEPAD_AGENT_KEY_ID` — the `ik_...` key id from the Agent Access tab
 - `FILEPAD_AGENT_SECRET` — the secret shown once on key creation
@@ -113,15 +113,44 @@ function signRequest(opts: {
 
 Filepad provides an MCP server that speaks stdio JSON-RPC. It exposes Filepad as tools inside OpenClaw, Claude Desktop, Cursor, or any MCP client.
 
-### OpenClaw One-Command Setup
+### OpenClaw Pairing Setup
 
-Create an Agent Access key, copy the secret while it is visible, then run:
+Create a short pairing code from **Settings -> Agent Access**, then run:
 
 ```bash
-openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server@latest"],"env":{"FILEPAD_BASE_URL":"https://app.filepad.ai/api","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'
+npx -y @filepad/agent-connect@latest pair ABC12345 --runtime openclaw
 ```
 
-Confirm OpenClaw can see the server:
+The pairing CLI exchanges the code, writes the MCP config, and prints a short
+handoff that the agent can read before MCP is restarted. Restart or reload MCP,
+then confirm OpenClaw can see the server:
+
+This restart/reload step is expected. If the current agent session cannot see
+`filepad_bootstrap` yet, pairing still succeeded; the host just needs to reload
+its MCP tool list.
+
+For OpenClaw, the pairing CLI writes the server to
+`~/.openclaw/openclaw.json` under `mcp.servers.filepad`.
+
+If MCP does not load, verify the backend and connection path before debugging
+the agent runtime:
+
+```bash
+curl http://localhost:3000/agent-api/v1/health
+curl http://localhost:3000/agent-api/v1/discovery
+filepad-mcp-server --health
+filepad-mcp-server --bootstrap
+filepad-mcp-server --tools --with-schemas
+filepad-mcp-server --call filepad_list_tree --args '{}'
+```
+
+During setup, agents can use the handoff session token on the read-only setup
+endpoints instead of implementing HMAC signing:
+
+```bash
+curl -H "Authorization: Bearer fp_sess_..." \
+  http://localhost:3000/agent-api/v1/workspaces/<workspaceId>/bootstrap
+```
 
 ```bash
 openclaw mcp list
@@ -130,8 +159,14 @@ openclaw mcp list
 Then start a new OpenClaw message:
 
 ```text
-Use Filepad now. Call filepad_connect first, read the bootstrap response, inspect the constitution and agent home, then tell me what you can do and what you recommend doing first.
+Call filepad_bootstrap, read the workspace profile and constitution, list your available Filepad tools, then report the first safe action you recommend.
 ```
+
+Manual secret-based setup is still supported for advanced users, but pairing is
+preferred because raw Agent Access secrets do not need to be pasted into chat.
+
+For the security boundary and operator kill switches, see
+[Agent Access Security Posture](./security-posture.md).
 
 ### Claude Desktop Config
 
@@ -144,7 +179,7 @@ Add to `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claud
       "command": "npx",
       "args": ["-y", "@filepad/mcp-server@latest"],
       "env": {
-        "FILEPAD_BASE_URL": "https://app.filepad.ai/api",
+        "FILEPAD_BASE_URL": "https://api.filepad.ai",
         "FILEPAD_WORKSPACE_ID": "ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "FILEPAD_AGENT_KEY_ID": "ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "FILEPAD_AGENT_SECRET": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

@@ -18,9 +18,9 @@ describe('tool-registry', () => {
     ];
     const tools = listToolsForScopes(scopes);
     expect(tools.length).toBeGreaterThanOrEqual(5);
-    expect(tools.map((t) => t.name)).toContain('filepad_connect');
     expect(tools.map((t) => t.name)).toContain('filepad_bootstrap');
     expect(tools.map((t) => t.name)).toContain('filepad_health');
+    expect(tools.map((t) => t.name)).toContain('filepad_describe_tool');
     expect(tools.map((t) => t.name)).toContain('filepad_search');
     expect(tools.map((t) => t.name)).toContain('filepad_create_artifact');
     expect(tools.map((t) => t.name)).toContain('filepad_propose_edit');
@@ -35,7 +35,6 @@ describe('tool-registry', () => {
 
   it('does not expose RuntimeTool-backed read aliases without tools:call', () => {
     const tools = listToolsForScopes(['env:read']);
-    expect(tools.map((t) => t.name)).toContain('filepad_connect');
     expect(tools.map((t) => t.name)).toContain('filepad_bootstrap');
     expect(tools.map((t) => t.name)).toContain('filepad_health');
     expect(tools.map((t) => t.name)).not.toContain('filepad_search');
@@ -49,21 +48,37 @@ describe('tool-registry', () => {
     expect(tools.map((t) => t.name)).not.toContain('filepad_update_profile');
   });
 
+  it('does not expose deprecated filepad_connect in the advertised tool list', () => {
+    const scopes: AgentAccessScope[] = ['env:read', 'tools:call', 'artifacts:direct_write', 'files:propose', 'events.write', 'signals:write', 'memory:read', 'notifications:read'];
+    const tools = listToolsForScopes(scopes);
+    const names = tools.map((t) => t.name);
+    expect(names).not.toContain('filepad_connect');
+    expect(names).toContain('filepad_bootstrap');
+  });
+
+  it('does not expose removed filepad_contract_status tool', () => {
+    const scopes: AgentAccessScope[] = ['env:read', 'artifacts:write', 'tools:call'];
+    const tools = listToolsForScopes(scopes);
+    const names = tools.map((t) => t.name);
+    expect(names).not.toContain('filepad_contract_status');
+    expect(names).toContain('filepad_get_contract_status');
+  });
+
   it('returns connect and health for empty scopes', () => {
     const tools = listToolsForScopes([]);
     expect(tools.map((t) => t.name)).toEqual([
-      'filepad_connect',
       'filepad_bootstrap',
       'filepad_health',
+      'filepad_describe_tool',
     ]);
   });
 
   it('returns mailbox acknowledgement for notifications:read only', () => {
     const tools = listToolsForScopes(['notifications:read']);
     expect(tools.map((t) => t.name)).toEqual([
-      'filepad_connect',
       'filepad_bootstrap',
       'filepad_health',
+      'filepad_describe_tool',
       'filepad_ack_notification',
     ]);
   });
@@ -114,6 +129,62 @@ describe('tool-registry', () => {
     expect(tool).toBeUndefined();
   });
 
+  // ── Active Contract MCP Tools ──
+
+  it('exposes agent-safe active contract MCP tools', () => {
+    const scopes: AgentAccessScope[] = ['env:read', 'artifacts:write', 'tools:call'];
+    const tools = listToolsForScopes(scopes);
+    const names = tools.map((t) => t.name);
+    expect(names).toContain('filepad_list_active_contracts');
+    expect(names).toContain('filepad_read_active_contract');
+    expect(names).toContain('filepad_create_contract');
+    expect(names).toContain('filepad_update_contract');
+    expect(names).toContain('filepad_record_contract_evidence');
+    expect(names).toContain('filepad_get_contract_status');
+    expect(names).not.toContain('filepad_compile_active_contract');
+    expect(names).not.toContain('filepad_mark_contract_stale');
+  });
+
+  it('active contract read tools require env:read', () => {
+    for (const name of ['filepad_list_active_contracts', 'filepad_read_active_contract']) {
+      const tool = findTool(name);
+      expect(tool).toBeTruthy();
+      expect(tool?.requiredScopes).toContain('env:read');
+    }
+    expect(findTool('filepad_get_contract_status')?.requiredScopes).toContain('tools:call');
+  });
+
+  it('active contract write tools require tools:call + artifacts:write', () => {
+    const create = findTool('filepad_create_contract');
+    expect(create?.requiredScopes).toContain('tools:call');
+    expect(create?.requiredScopes).toContain('artifacts:write');
+
+    const update = findTool('filepad_update_contract');
+    expect(update?.requiredScopes).toContain('tools:call');
+    expect(update?.requiredScopes).toContain('artifacts:write');
+
+    const evidence = findTool('filepad_record_contract_evidence');
+    expect(evidence?.requiredScopes).toContain('tools:call');
+    expect(evidence?.requiredScopes).toContain('artifacts:write');
+  });
+
+  it('active contract read tools visible with env:read', () => {
+    const tools = listToolsForScopes(['env:read']);
+    const names = tools.map((t) => t.name);
+    expect(names).toContain('filepad_list_active_contracts');
+    expect(names).toContain('filepad_read_active_contract');
+    expect(names).not.toContain('filepad_contract_status');
+  });
+
+  it('active contract write tools hidden without artifacts:write', () => {
+    const tools = listToolsForScopes(['env:read']);
+    const names = tools.map((t) => t.name);
+    expect(names).not.toContain('filepad_create_contract');
+    expect(names).not.toContain('filepad_update_contract');
+    expect(names).not.toContain('filepad_record_contract_evidence');
+    expect(names).not.toContain('filepad_mark_contract_stale');
+  });
+
   it('returns constitution tool when env:read scope is granted', () => {
     const tools = listToolsForScopes(['env:read']);
     expect(tools.map((t) => t.name)).toContain('filepad_get_constitution');
@@ -148,8 +219,8 @@ describe('tool-registry', () => {
       expect(typeof tool.inputSchema).toBe('object');
       if (
         tool.name === 'filepad_health' ||
-        tool.name === 'filepad_connect' ||
-        tool.name === 'filepad_bootstrap'
+        tool.name === 'filepad_bootstrap' ||
+        tool.name === 'filepad_describe_tool'
       ) {
         expect(tool.requiredScopes).toEqual([]);
       } else {

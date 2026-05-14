@@ -2,24 +2,27 @@
 /**
  * Clean Install Proof
  *
- * Proves that @filepad/agent-access-sdk and @filepad/mcp-server can be
- * installed and used outside the monorepo without workspace symlinks.
+ * Proves that @filepad/agent-access-sdk, @filepad/agent-connect,
+ * @filepad/claude-code-hooks, and @filepad/mcp-server can be installed and used
+ * outside the monorepo without workspace symlinks.
  *
  * Steps:
- * 1. Build both packages
+ * 1. Build public packages
  * 2. Pack them into tarballs (pnpm pack handles workspace:^ resolution)
  * 3. Create a temp directory outside the monorepo
- * 4. npm install both tarballs
- * 5. Run filepad-mcp-server with missing env → confirm clean error
- * 6. Run filepad-mcp-server with test env against Filepad → confirm health check
+ * 4. npm install all tarballs
+ * 5. Run filepad-agent-connect without args → confirm clean usage error
+ * 6. Run filepad-claude-code-hook doctor with missing env → confirm clean error
+ * 7. Run filepad-mcp-server with missing env → confirm clean error
+ * 8. Run filepad-mcp-server with test env against Filepad → confirm health check
  *
  * Usage:
  *   FILEPAD_BASE_URL=... FILEPAD_WORKSPACE_ID=... FILEPAD_AGENT_KEY_ID=... FILEPAD_AGENT_SECRET=... \
  *     node scripts/agent-access/clean-install-proof.mjs [local|staging]
  *
  * FILEPAD_BASE_URL takes precedence over the target default. If neither is set:
- *   local   => http://localhost:3000/api
- *   staging => https://app.filepad.ai/api
+ *   local   => http://localhost:3000
+ *   staging => https://api.filepad.ai
  */
 
 import { execSync, spawn } from 'node:child_process';
@@ -52,7 +55,7 @@ function printAuthFailure(baseUrl, workspaceId, keyId) {
   console.error('    - Key has been revoked or rotated');
   console.error('    - Secret does not match the key id');
   console.error('    - Wrong workspace id for this key');
-  console.error('    - Base URL does not match the deployment (e.g. missing /api)');
+  console.error('    - Base URL does not match the deployment (use the API origin, not the app origin)');
   console.error('    - Clock skew: system time is more than a few minutes off');
   console.error('    - Key was created in a different workspace');
   console.error('');
@@ -68,8 +71,8 @@ function run(cmd, opts = {}) {
 const target = process.argv[2] || 'local';
 const envBaseUrl = process.env['FILEPAD_BASE_URL'];
 const targetBaseUrl = target === 'staging'
-  ? 'https://app.filepad.ai/api'
-  : 'http://localhost:3000/api';
+  ? 'https://api.filepad.ai'
+  : 'http://localhost:3000';
 const baseUrl = envBaseUrl || targetBaseUrl;
 
 log(`Target argument: ${target}`);
@@ -78,20 +81,30 @@ log(`Base URL: ${baseUrl}` + (envBaseUrl ? ' (from env)' : ' (target default)'))
 // ── 1. Build both packages ──
 log('Building packages...');
 run('pnpm -C packages/agent-access-sdk build', { cwd: MONOREPO_ROOT });
+run('pnpm -C packages/claude-code-hooks build', { cwd: MONOREPO_ROOT });
+run('pnpm -C packages/agent-connect build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/mcp-server build', { cwd: MONOREPO_ROOT });
 
 // ── 2. Pack tarballs ──
 log('Packing tarballs...');
 const sdkPackOutput = run('pnpm pack', { cwd: join(MONOREPO_ROOT, 'packages/agent-access-sdk') }).trim();
+const claudeHooksPackOutput = run('pnpm pack', { cwd: join(MONOREPO_ROOT, 'packages/claude-code-hooks') }).trim();
+const agentConnectPackOutput = run('pnpm pack', { cwd: join(MONOREPO_ROOT, 'packages/agent-connect') }).trim();
 const mcpPackOutput = run('pnpm pack', { cwd: join(MONOREPO_ROOT, 'packages/mcp-server') }).trim();
 
 const sdkTarball = sdkPackOutput.split('\n').pop().trim();
+const claudeHooksTarball = claudeHooksPackOutput.split('\n').pop().trim();
+const agentConnectTarball = agentConnectPackOutput.split('\n').pop().trim();
 const mcpTarball = mcpPackOutput.split('\n').pop().trim();
 
 const sdkTarballPath = resolve(MONOREPO_ROOT, 'packages/agent-access-sdk', sdkTarball);
+const claudeHooksTarballPath = resolve(MONOREPO_ROOT, 'packages/claude-code-hooks', claudeHooksTarball);
+const agentConnectTarballPath = resolve(MONOREPO_ROOT, 'packages/agent-connect', agentConnectTarball);
 const mcpTarballPath = resolve(MONOREPO_ROOT, 'packages/mcp-server', mcpTarball);
 
 log(`SDK tarball: ${sdkTarballPath}`);
+log(`Claude Code hooks tarball: ${claudeHooksTarballPath}`);
+log(`Agent Connect tarball: ${agentConnectTarballPath}`);
 log(`MCP tarball: ${mcpTarballPath}`);
 
 // ── 3. Create temp directory outside monorepo ──
@@ -112,17 +125,66 @@ try {
   log('Installing SDK tarball...');
   run(`npm install "${sdkTarballPath}"`, { cwd: tmpDir });
 
+  log('Installing Claude Code hooks tarball...');
+  run(`npm install "${claudeHooksTarballPath}"`, { cwd: tmpDir });
+
+  log('Installing Agent Connect tarball...');
+  run(`npm install "${agentConnectTarballPath}"`, { cwd: tmpDir });
+
   log('Installing MCP server tarball...');
   run(`npm install "${mcpTarballPath}"`, { cwd: tmpDir });
 
   // ── 5. Verify CLI is available ──
+  const agentConnectBin = join(tmpDir, 'node_modules/.bin/filepad-agent-connect');
+  const claudeHooksBin = join(tmpDir, 'node_modules/.bin/filepad-claude-code-hook');
+  if (!existsSync(agentConnectBin)) {
+    fatal('filepad-agent-connect binary not found in node_modules/.bin');
+  }
+  if (!existsSync(claudeHooksBin)) {
+    fatal('filepad-claude-code-hook binary not found in node_modules/.bin');
+  }
   const mcpBin = join(tmpDir, 'node_modules/.bin/filepad-mcp-server');
   if (!existsSync(mcpBin)) {
     fatal('filepad-mcp-server binary not found in node_modules/.bin');
   }
+  log('CLI binary found: node_modules/.bin/filepad-agent-connect');
+  log('CLI binary found: node_modules/.bin/filepad-claude-code-hook');
   log('CLI binary found: node_modules/.bin/filepad-mcp-server');
 
-  // ── 6. Missing env test ──
+  // ── 6. Agent Connect usage test ──
+  log('Testing Agent Connect with missing arguments...');
+  let agentConnectUsageOutput;
+  try {
+    agentConnectUsageOutput = run(`"${agentConnectBin}"`, { cwd: tmpDir });
+    fatal('Expected exit code 1 for missing Agent Connect args, but process succeeded');
+  } catch (err) {
+    agentConnectUsageOutput = err.stderr || err.stdout || '';
+    if (!agentConnectUsageOutput.includes('filepad-agent-connect failed: Usage:')) {
+      fatal(`Expected clean Agent Connect usage error, got:\n${agentConnectUsageOutput}`);
+    }
+  }
+  log('✅ Agent Connect produces clean usage error');
+
+  // ── 7. Claude Code hook adapter missing env test ──
+  log('Testing Claude Code hook adapter with missing environment variables...');
+  let claudeHooksDoctorOutput;
+  try {
+    claudeHooksDoctorOutput = run(`"${claudeHooksBin}" doctor`, {
+      cwd: tmpDir,
+      env: {
+        PATH: process.env.PATH,
+      },
+    });
+    fatal('Expected exit code 1 for missing Claude hook env, but process succeeded');
+  } catch (err) {
+    claudeHooksDoctorOutput = err.stderr || err.stdout || '';
+    if (!claudeHooksDoctorOutput.includes('Filepad hook credentials not found')) {
+      fatal(`Expected clean Claude hook missing-env error, got:\n${claudeHooksDoctorOutput}`);
+    }
+  }
+  log('✅ Claude Code hook adapter produces clean missing-env error');
+
+  // ── 8. Missing env test ──
   log('Testing with missing environment variables...');
   let missingEnvOutput;
   try {
@@ -142,7 +204,7 @@ try {
   }
   log('✅ Missing env produces clean error message');
 
-  // ── 7. Health check against backend (if credentials available) ──
+  // ── 9. Health check against backend (if credentials available) ──
   if (workspaceId && keyId && secret) {
     log('Testing health check against backend...');
     log(`Workspace: ${workspaceId}`);
@@ -292,6 +354,8 @@ try {
   log('');
   log('  Packages install cleanly outside the monorepo');
   log('  No workspace symlinks or source dependencies leaked');
+  log('  Agent Connect CLI is executable');
+  log('  Claude Code hook adapter CLI is executable');
   log('  CLI produces clean errors for missing configuration');
   if (workspaceId && keyId && secret) {
     log('  MCP stdio health check succeeded against live backend');
@@ -304,6 +368,7 @@ try {
   fatal(err.message);
 } finally {
   rmSync(sdkTarballPath, { force: true });
+  rmSync(agentConnectTarballPath, { force: true });
   rmSync(mcpTarballPath, { force: true });
   rmSync(tmpDir, { recursive: true, force: true });
   log('Cleaned up temp files');

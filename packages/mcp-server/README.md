@@ -14,6 +14,35 @@ npm install -g @filepad/mcp-server
 
 Requires Node.js 18+.
 
+For first-time runtime setup, prefer the pairing CLI so you do not paste Agent
+Access secrets into chat:
+
+```bash
+npx -y @filepad/agent-connect pair ABC12345 --runtime openclaw
+```
+
+Pairing writes the MCP config and prints a concise pre-restart handoff. After
+restarting or reloading your MCP host, call `filepad_bootstrap`.
+
+## Agent diagnostics without MCP
+
+If your MCP host cannot load the server yet, run the same package directly with
+the Filepad environment variables from your MCP config:
+
+```bash
+filepad-mcp-server --health
+filepad-mcp-server --bootstrap
+filepad-mcp-server --tools
+filepad-mcp-server --tools --with-schemas
+filepad-mcp-server --call filepad_list_tree --args '{}'
+```
+
+`--bootstrap` returns the same onboarding payload as the MCP
+`filepad_bootstrap` tool. This gives agents a useful fallback instead of a
+silent stdio failure. `--tools --with-schemas` shows each input schema, and
+`--call` runs a single tool without requiring the host runtime to surface native
+MCP tools first.
+
 ## Claude Desktop Configuration
 
 Add to `claude_desktop_config.json`:
@@ -29,7 +58,7 @@ Add to `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@filepad/mcp-server@latest"],
       "env": {
-        "FILEPAD_BASE_URL": "https://app.filepad.ai/api",
+        "FILEPAD_BASE_URL": "https://api.filepad.ai",
         "FILEPAD_WORKSPACE_ID": "ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "FILEPAD_AGENT_KEY_ID": "ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "FILEPAD_AGENT_SECRET": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -39,15 +68,14 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop. Start with `filepad_connect` or `filepad_bootstrap`;
-it returns identity, workspace, scopes, available RuntimeTools, agent home,
-mailbox, recent outcomes, missing permissions, tool groups, and suggested
-first actions in one response.
+Restart the MCP host. Start with `filepad_bootstrap`; it returns identity,
+workspace, scopes, available tools, mailbox, missing permissions, tool groups,
+and suggested first actions in one response.
 
 First prompt to send your agent:
 
 ```text
-Use Filepad now. Call filepad_connect first, read the bootstrap response, inspect the constitution and agent home, then tell me what you can do and what you recommend doing first.
+Use Filepad now. Call filepad_bootstrap first, read the bootstrap response, then tell me what work Filepad is tracking and what you recommend doing first.
 ```
 
 For OpenClaw, Claude Code, Codex, Cursor, Windsurf, or custom agents, add the
@@ -61,7 +89,7 @@ loop.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `FILEPAD_BASE_URL` | Yes | Filepad API base URL (e.g. `https://app.filepad.ai/api`) |
+| `FILEPAD_BASE_URL` | Yes | Filepad API origin (e.g. `https://api.filepad.ai`; do not add `/api`) |
 | `FILEPAD_WORKSPACE_ID` | Yes | Workspace id (e.g. `ws_...`) |
 | `FILEPAD_AGENT_KEY_ID` | Yes | Agent Access key id (e.g. `ik_...`) |
 | `FILEPAD_AGENT_SECRET` | Yes | Agent Access secret (shown once on creation) |
@@ -70,8 +98,7 @@ loop.
 
 | Tool | Scope | Description |
 |------|-------|-------------|
-| `filepad_connect` | None | Start-here onboarding/resume diagnostics with workspace identity, scopes, tools, agent home, mailbox, recent outcomes, and suggested first actions |
-| `filepad_bootstrap` | None | Alias for `filepad_connect` for MCP clients that look for bootstrap-style tools |
+| `filepad_bootstrap` | None | Start-here onboarding/resume diagnostics with workspace identity, scopes, tools, mailbox, recent outcomes, and suggested first actions |
 | `filepad_health` | None | Check connection and report granted scopes |
 | `filepad_list_tree` | `tools:call`, `env:read` | Compatibility alias for canonical workspace file-tree listing |
 | `filepad_read_file` | `tools:call`, `env:read` | Compatibility alias for canonical workspace file reading |
@@ -84,7 +111,7 @@ loop.
 | `filepad_list_signals` | `env:read` | Query visible workspace signals |
 | `filepad_get_signal` | `env:read` | Read one workspace signal by id |
 | `filepad_ack_notification` | `notifications:read` | Acknowledge mailbox notifications after processing |
-| `filepad_get_profile` | `env:read` | Read this integration's agent home profile files |
+| `filepad_get_profile` | `env:read` | Read this integration's metadata-backed profile |
 | `filepad_update_profile` | `env:read`, `files:propose` | Propose a reviewable update to the agent profile |
 | `gmail_search` / `gmail_get_message` | `tools:call`, `gmail:read` | Read synced Gmail source records |
 | `gmail_import_message` | `tools:call`, `gmail:write` | Promote a synced Gmail source record into workspace knowledge through Temporal |

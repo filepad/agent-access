@@ -18,8 +18,8 @@
  *     node scripts/agent-access/mcp-proof.mjs [local|staging]
  *
  * FILEPAD_BASE_URL takes precedence over the target default. If neither is set:
- *   local   => http://localhost:3000/api
- *   staging => https://app.filepad.ai/api
+ *   local   => http://localhost:3000
+ *   staging => https://api.filepad.ai
  *
  * Requirements:
  *   - Must use ONLY MCP stdio JSON-RPC + Agent Access HMAC credentials
@@ -55,7 +55,7 @@ function printAuthFailure(baseUrl, workspaceId, keyId) {
   console.error('    - Key has been revoked or rotated');
   console.error('    - Secret does not match the key id');
   console.error('    - Wrong workspace id for this key');
-  console.error('    - Base URL does not match the deployment (e.g. missing /api)');
+  console.error('    - Base URL does not match the deployment (use the API origin, not the app origin)');
   console.error('    - Clock skew: system time is more than a few minutes off');
   console.error('    - Key was created in a different workspace');
   console.error('');
@@ -67,8 +67,8 @@ function printAuthFailure(baseUrl, workspaceId, keyId) {
 const target = process.argv[2] || 'local';
 const envBaseUrl = process.env['FILEPAD_BASE_URL'];
 const targetBaseUrl = target === 'staging'
-  ? 'https://app.filepad.ai/api'
-  : 'http://localhost:3000/api';
+  ? 'https://api.filepad.ai'
+  : 'http://localhost:3000';
 const baseUrl = envBaseUrl || targetBaseUrl;
 
 const workspaceId = process.env['FILEPAD_WORKSPACE_ID'];

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server@latest"],"env":{"FILEPAD_BASE_URL":"https://app.filepad.ai/api","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'
+openclaw mcp set filepad '{"command":"npx","args":["-y","@filepad/mcp-server@latest"],"env":{"FILEPAD_BASE_URL":"https://api.filepad.ai","FILEPAD_WORKSPACE_ID":"ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_KEY_ID":"ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx","FILEPAD_AGENT_SECRET":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}'

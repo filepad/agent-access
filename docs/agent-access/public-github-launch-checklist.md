@@ -59,10 +59,16 @@ cd .tmp/agent-access-public
 pnpm validate:agent-access:release
 
 cd packages/agent-access-sdk
-npm publish --access public
+pnpm publish --access public
 
 cd ../mcp-server
-npm publish --access public
+pnpm publish --access public
+
+cd ../claude-code-hooks
+pnpm publish --access public
+
+cd ../agent-connect
+pnpm publish --access public
 ```
 
 Verify:
@@ -70,6 +76,9 @@ Verify:
 ```bash
 npm view @filepad/agent-access-sdk version
 npm view @filepad/mcp-server version
+npm view @filepad/claude-code-hooks version
+npm view @filepad/agent-connect version
+npx -y @filepad/agent-connect@latest --help
 npx -y @filepad/mcp-server@latest
 ```
 
@@ -78,7 +87,7 @@ npx -y @filepad/mcp-server@latest
 Create a fresh Agent Access key in staging/production, then run:
 
 ```bash
-FILEPAD_BASE_URL=https://app.filepad.ai/api \
+FILEPAD_BASE_URL=https://api.filepad.ai \
 FILEPAD_WORKSPACE_ID=ws_... \
 FILEPAD_AGENT_KEY_ID=ik_... \
 FILEPAD_AGENT_SECRET=... \

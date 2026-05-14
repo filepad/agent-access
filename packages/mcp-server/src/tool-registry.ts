@@ -75,6 +75,34 @@ export interface AckNotificationArgs {
   ids: string[];
 }
 
+export interface ListActiveContractsArgs {
+  limit?: number | undefined;
+}
+
+export interface ReadActiveContractArgs {
+  contractId: string;
+}
+
+export interface CreateContractArgs {
+  sourceText: string;
+}
+
+export interface UpdateContractArgs {
+  sourceText: string;
+}
+
+export interface RecordContractEvidenceArgs {
+  contractId: string;
+  checkId?: string | undefined;
+  source?: string | undefined;
+  status: 'passing' | 'failing' | 'blocked' | 'unverified';
+  summary: string;
+}
+
+export interface GetContractStatusArgs {
+  contractId: string;
+}
+
 export type AgentProfileField =
   | 'identity'
   | 'learnings'
@@ -95,21 +123,15 @@ export interface ConstitutionArgs {
   refresh?: boolean | undefined;
 }
 
+export interface DescribeToolArgs {
+  toolName: string;
+}
+
 const TOOL_REGISTRY: McpToolDefinition[] = [
-  {
-    name: 'filepad_connect',
-    description:
-      'START HERE. Connect to Filepad and return the full agent onboarding diagnostic: identity, workspace, scopes, RuntimeTools, agent home, mailbox, recent outcomes, and suggested first actions. Run this first and again when resuming work.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
-    requiredScopes: [],
-  },
   {
     name: 'filepad_bootstrap',
     description:
-      'START HERE alias for filepad_connect. Use this when your MCP client looks for bootstrap/connect tools. Returns the same onboarding diagnostic and suggested first actions.',
+      'START HERE. Return the compact Filepad operating brief: workspace identity, permissions, active contracts, assignment, mailbox count, and the next useful action.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -123,6 +145,22 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {},
+    },
+    requiredScopes: [],
+  },
+  {
+    name: 'filepad_describe_tool',
+    description:
+      'Describe one Filepad tool in detail. Use this only when the compact bootstrap quick reference is not enough and you need the full schema for a specific tool.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        toolName: {
+          type: 'string',
+          description: 'MCP tool name or RuntimeTool provider name to describe',
+        },
+      },
+      required: ['toolName'],
     },
     requiredScopes: [],
   },
@@ -253,9 +291,8 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
   {
     name: 'filepad_propose_edit',
     description:
-      'Propose a reviewable edit to an existing file. ' +
-      'The edit does not apply until a human approves it. ' +
-      'Only files under artifacts/, agents/, skills/, and memory/ can be targeted.',
+      'Propose a reviewable edit to an existing workspace file. Required shape: filepad_propose_edit({"fileNodeId":"fn_...","baseVersionId":"av_...","summary":"Short change summary","newText":"Complete replacement text"}). ' +
+      'The edit does not apply until a human approves it.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -409,8 +446,8 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
   {
     name: 'filepad_get_profile',
     description:
-      'Read this integration agent home profile from agents/integrations/{keyId}. ' +
-      'Returns identity, learnings, goals, and timeline profile files when present.',
+      'Read this integration profile from Filepad workspace and integration metadata. ' +
+      'Returns identity metadata and clear unavailable markers for legacy profile fields.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -456,9 +493,8 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
   {
     name: 'filepad_get_constitution',
     description:
-      'Get the workspace constitution — your authoritative workspace identity document. ' +
-      'Returns role, territory, behavioral rules, active context, vocabulary, and communication protocols. ' +
-      'Read this as you read your framework-native identity (SOUL.md). Refreshes active context on each call.',
+      'Get the workspace operating context — permissions, behavioral rules, active context, vocabulary, and communication protocols. ' +
+      'Use this for workspace-level configuration; prefer filepad_bootstrap for session start.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -469,6 +505,221 @@ const TOOL_REGISTRY: McpToolDefinition[] = [
       },
     },
     requiredScopes: ['env:read'],
+  },
+  {
+    name: 'filepad_diagram_get_structure',
+    description:
+      'Read the current nodes and edges of a diagram artifact as structured JSON. ' +
+      'Always call this before any diagram mutation to discover existing node IDs and the current graph state.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Diagram artifact id' },
+      },
+      required: ['artifactId'],
+    },
+    requiredScopes: ['tools:call', 'env:read'],
+  },
+  {
+    name: 'filepad_diagram_add_node',
+    description:
+      'Add a new node to a diagram artifact. ' +
+      "Provide a short slug-style id (e.g. 'auth_service', no spaces). " +
+      'Use label for the human-readable display text. ' +
+      'Call filepad_diagram_get_structure first to see existing nodes.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Diagram artifact id' },
+        baseVersionId: { type: 'string', description: 'Current version id from get_structure' },
+        id: {
+          type: 'string',
+          description: 'Unique slug-style node id (letters, digits, underscores)',
+        },
+        label: { type: 'string', description: 'Human-readable display text for the node' },
+        shape: {
+          type: 'string',
+          enum: ['rect', 'stadium', 'rhombus', 'circle'],
+          description: 'Node shape (default: rect)',
+        },
+      },
+      required: ['artifactId', 'baseVersionId', 'id', 'label'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
+  },
+  {
+    name: 'filepad_diagram_add_edge',
+    description:
+      'Add a directed edge between two existing nodes in a diagram artifact. ' +
+      'Call filepad_diagram_get_structure first to find valid node IDs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Diagram artifact id' },
+        baseVersionId: { type: 'string', description: 'Current version id from get_structure' },
+        from: { type: 'string', description: 'Source node id' },
+        to: { type: 'string', description: 'Target node id' },
+        label: { type: 'string', description: 'Optional edge label' },
+      },
+      required: ['artifactId', 'baseVersionId', 'from', 'to'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
+  },
+  {
+    name: 'filepad_diagram_remove_node',
+    description:
+      'Remove a node and all its connected edges from a diagram artifact.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Diagram artifact id' },
+        baseVersionId: { type: 'string', description: 'Current version id from get_structure' },
+        id: { type: 'string', description: 'Node id to remove' },
+      },
+      required: ['artifactId', 'baseVersionId', 'id'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
+  },
+  {
+    name: 'filepad_diagram_update_node',
+    description:
+      'Update the label or shape of an existing node in a diagram artifact.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Diagram artifact id' },
+        baseVersionId: { type: 'string', description: 'Current version id from get_structure' },
+        id: { type: 'string', description: 'Node id to update' },
+        label: { type: 'string', description: 'New label (omit to keep current)' },
+        shape: {
+          type: 'string',
+          enum: ['rect', 'stadium', 'rhombus', 'circle'],
+          description: 'New shape (omit to keep current)',
+        },
+      },
+      required: ['artifactId', 'baseVersionId', 'id'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
+  },
+  {
+    name: 'filepad_diagram_patch',
+    description:
+      'Apply multiple diagram operations atomically in a single call. ' +
+      'Use this when building a new diagram from scratch or making several related changes at once — ' +
+      'it saves all changes as one version rather than one approval per operation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artifactId: { type: 'string', description: 'Diagram artifact id' },
+        baseVersionId: { type: 'string', description: 'Current version id from get_structure' },
+        ops: {
+          type: 'array',
+          description: 'Ordered list of diagram operations to apply',
+          minItems: 1,
+          maxItems: 200,
+          items: {
+            type: 'object',
+            properties: {
+              kind: {
+                type: 'string',
+                enum: ['add_node', 'add_edge', 'remove_node', 'update_node', 'remove_edge'],
+              },
+            },
+            required: ['kind'],
+          },
+        },
+      },
+      required: ['artifactId', 'baseVersionId', 'ops'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:direct_write'],
+  },
+  // ── Active Contracts ──
+  {
+    name: 'filepad_list_active_contracts',
+    description:
+      'List active contracts in the workspace. Active contracts are durable agreements that track work, rules, checks, and evidence. Use this to see what work is governed by contracts.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', minimum: 1, maximum: 100, description: 'Max results' },
+      },
+    },
+    requiredScopes: ['env:read'],
+  },
+  {
+    name: 'filepad_read_active_contract',
+    description:
+      'Read a specific active contract with its checks and evidence. Returns the full contract projection, check statuses, and recent evidence records.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contractId: { type: 'string', description: 'Contract ID' },
+      },
+      required: ['contractId'],
+    },
+    requiredScopes: ['env:read'],
+  },
+  {
+    name: 'filepad_create_contract',
+    description:
+      'Create a Filepad active contract from YAML text. Use this when the user asks you to create a governed, machine-checkable contract from a brief or plan. Returns the contract id, lifecycle status, and approval message.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sourceText: { type: 'string', description: 'Complete Filepad contract YAML.' },
+      },
+      required: ['sourceText'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:write'],
+  },
+  {
+    name: 'filepad_update_contract',
+    description:
+      'Update an existing Filepad active contract from replacement YAML text. The YAML must identify the existing contract. Returns the contract id, lifecycle status, and approval message.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sourceText: { type: 'string', description: 'Complete replacement Filepad contract YAML.' },
+      },
+      required: ['sourceText'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:write'],
+  },
+  {
+    name: 'filepad_record_contract_evidence',
+    description:
+      'Record evidence for an active contract check. This updates check status and can change contract verification state. Use this only for evidence the agent actually observed; Guardian and hooks own freshness/staleness.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contractId: { type: 'string', description: 'Contract ID' },
+        checkId: { type: 'string', description: 'Optional check ID' },
+        source: { type: 'string', enum: ['user', 'filepad_ai', 'external_agent', 'guardian', 'github', 'ci', 'temporal', 'system'] },
+        sourceName: { type: 'string', description: 'Human-readable source name (e.g. filepad-guardian)' },
+        sourceRuntime: { type: 'string', description: 'Runtime identifier (e.g. cli)' },
+        status: { type: 'string', enum: ['passing', 'failing', 'blocked', 'unverified'] },
+        summary: { type: 'string', description: 'Evidence summary (1-2000 chars)' },
+        provenance: { type: 'object', description: 'First-class provenance: command, cwd, exitCode, stdoutDigest, stderrDigest, gitSha, gitBranch, filePaths, fileHashes, url, sourceId' },
+        freshness: { type: 'object', description: 'Freshness metadata: affectedPaths, validForTreeHash, validForGitSha' },
+        observedAt: { type: 'string', description: 'ISO timestamp when evidence was observed' },
+        data: { type: 'object', description: 'Additional data payload (non-canonical extras only)' },
+      },
+      required: ['contractId', 'status', 'summary'],
+    },
+    requiredScopes: ['tools:call', 'artifacts:write'],
+  },
+  {
+    name: 'filepad_get_contract_status',
+    description:
+      'Get the current contract lifecycle status, verification status, done-when completion, pending approval flag, and per-check statuses.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contractId: { type: 'string', description: 'Contract ID' },
+      },
+      required: ['contractId'],
+    },
+    requiredScopes: ['tools:call'],
   },
 ];
 

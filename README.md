@@ -6,13 +6,16 @@ Public SDK and MCP server packages for connecting external AI agents to Filepad 
 
 | Package | Version | Purpose |
 |---|---:|---|
-| [@filepad/agent-access-sdk](./packages/agent-access-sdk) | 0.1.2 | TypeScript client for Agent Access HTTP APIs |
-| [@filepad/mcp-server](./packages/mcp-server) | 0.1.2 | stdio MCP server exposing Filepad tools to MCP-compatible agents |
+| [@filepad/agent-access-sdk](./packages/agent-access-sdk) | 0.1.5 | TypeScript client for Agent Access HTTP APIs |
+| [@filepad/agent-connect](./packages/agent-connect) | 0.1.13 | Pre-MCP pairing CLI for OpenClaw, Claude Code, Codex, Cursor, and Windsurf |
+| [@filepad/claude-code-hooks](./packages/claude-code-hooks) | 0.1.1 | Claude Code hook adapter used only by Claude Code runtime profiles |
+| [@filepad/mcp-server](./packages/mcp-server) | 0.1.8 | stdio MCP server exposing Filepad tools to MCP-compatible agents |
 
 ## Install
 
 ```bash
 npm install @filepad/agent-access-sdk
+npx -y @filepad/agent-connect@latest pair ABC123 --runtime openclaw
 npx -y @filepad/mcp-server@latest
 ```
 

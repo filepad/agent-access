@@ -31,7 +31,7 @@ Requires Node.js 18+.
 import { FilepadAgentClient } from '@filepad/agent-access-sdk';
 
 const client = new FilepadAgentClient({
-  baseUrl: 'https://app.filepad.ai/api',
+  baseUrl: 'https://api.filepad.ai',
   workspaceId: 'ws_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
   keyId: 'ik_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
   secret: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
@@ -45,7 +45,9 @@ console.log('Visible tools:', connected.tools.map(tool => tool.providerName));
 console.log('Suggested first actions:', connected.bootstrap.suggestedFirstActions);
 
 // For native-memory runtimes, hydrate the planner with connected.bootstrap,
-// connected.agentHome, connected.mailbox, and connected.recentOutcomes before work.
+// connected.mailbox and connected.recentOutcomes before work.
+// `client.bootstrap()` is an alias that calls the HTTP /bootstrap endpoint and
+// returns the same payload.
 
 // Read environment
 const env = await client.getEnvironment();
@@ -127,6 +129,9 @@ Returns the integration key id, integration id, workspace id, and granted scopes
 
 #### `connect()`
 Returns onboarding/resume diagnostics: identity, workspace, granted scopes, recommended missing scopes, available RuntimeTools, agent home, unread mailbox, recent outcomes, tool groups, and suggested first actions. Agents should call this first and when resuming work.
+
+#### `bootstrap()`
+Alias for `connect()` that calls the HTTP `/bootstrap` endpoint. Use this when a runtime or fallback path is explicitly looking for a bootstrap handshake.
 
 #### `getEnvironment()`
 Returns workspace folders and their status.

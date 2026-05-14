@@ -1,6 +1,6 @@
 {
   "name": "@filepad/agent-access-sdk",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "description": "Official SDK for connecting external agents to Filepad workspaces via Agent Access.",
   "type": "module",
   "main": "./dist/index.js",

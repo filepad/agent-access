@@ -138,6 +138,28 @@ try {
   }
   info('No source/test/private file leaks');
 
+  // 4b. Verify declared entrypoints and binaries exist in the packed artifact.
+  const entrypointFields = [
+    ['main', packedPkg.main],
+    ['types', packedPkg.types],
+  ].filter(([, value]) => typeof value === 'string' && value.length > 0);
+  for (const [field, value] of entrypointFields) {
+    const normalized = value.replace(/^\.\//, '');
+    if (!tarballFileList.includes(normalized)) {
+      fatal(`package.json ${field} points to missing packed file: ${value}`);
+    }
+  }
+  for (const [name, value] of Object.entries(packedPkg.bin ?? {})) {
+    if (typeof value !== 'string' || value.length === 0) {
+      fatal(`package.json bin "${name}" must point to a file`);
+    }
+    const normalized = value.replace(/^\.\//, '');
+    if (!tarballFileList.includes(normalized)) {
+      fatal(`package.json bin "${name}" points to missing packed file: ${value}`);
+    }
+  }
+  info('Declared entrypoints and bins exist in package');
+
   // 5. Verify dist/ exists and has .js + .d.ts
   const distPath = join(extractedRoot, 'dist');
   if (!existsSync(distPath)) {

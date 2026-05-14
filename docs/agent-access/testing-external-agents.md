@@ -59,8 +59,8 @@ All proof scripts respect `FILEPAD_BASE_URL` if set. If not set, they use target
 
 | Target | Default Base URL |
 |--------|------------------|
-| `local` | `http://localhost:3000/api` |
-| `staging` | `https://app.filepad.ai/api` |
+| `local` | `http://localhost:3000` |
+| `staging` | `https://api.filepad.ai` |
 
 Required variables for backend-connected proofs:
 
@@ -73,7 +73,7 @@ export FILEPAD_AGENT_SECRET="..."
 Optional:
 
 ```bash
-export FILEPAD_BASE_URL="https://app.filepad.ai/api"  # overrides target default
+export FILEPAD_BASE_URL="https://api.filepad.ai"  # overrides target default
 ```
 
 ## Running the MCP Proof Harness
@@ -81,20 +81,20 @@ export FILEPAD_BASE_URL="https://app.filepad.ai/api"  # overrides target default
 The MCP proof script performs a full stdio JSON-RPC proof:
 
 ```bash
-# Local backend (uses http://localhost:3000/api)
+# Local backend (uses http://localhost:3000)
 FILEPAD_WORKSPACE_ID=ws_... \
 FILEPAD_AGENT_KEY_ID=ik_... \
 FILEPAD_AGENT_SECRET=... \
   pnpm proof:mcp local
 
-# Staging backend (uses https://app.filepad.ai/api)
+# Staging backend (uses https://api.filepad.ai)
 FILEPAD_WORKSPACE_ID=ws_... \
 FILEPAD_AGENT_KEY_ID=ik_... \
 FILEPAD_AGENT_SECRET=... \
   pnpm proof:mcp staging
 
 # Override base URL explicitly
-FILEPAD_BASE_URL=https://app.filepad.ai/api \
+FILEPAD_BASE_URL=https://api.filepad.ai \
 FILEPAD_WORKSPACE_ID=ws_... \
 FILEPAD_AGENT_KEY_ID=ik_... \
 FILEPAD_AGENT_SECRET=... \
