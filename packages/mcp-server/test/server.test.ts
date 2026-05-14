@@ -203,6 +203,25 @@ describe('MCP tool calls', () => {
     );
   });
 
+  it('still lists bootstrap tools when backend RuntimeTool discovery is unavailable', async () => {
+    const client = {
+      listTools: async () => {
+        throw new Error('Missing required scope: tools:read');
+      },
+    } as unknown as FilepadAgentClient;
+
+    const result = await handleListTools({}, {
+      client,
+      workspaceId: 'ws_test',
+      scopes: ['env:read'],
+    });
+
+    const names = result.tools.map((tool) => tool.name);
+    expect(names).toContain('filepad_bootstrap');
+    expect(names).toContain('filepad_health');
+    expect(names).toContain('filepad_describe_tool');
+  });
+
   it('returns compact diagnostics through filepad_connect (compatibility alias)', async () => {
     const client = {
       connect: async () => ({

@@ -489,7 +489,7 @@ export async function handleListTools(
   _request: unknown,
   ctx: McpHandlerContext,
 ) {
-  const listed = await ctx.client.listTools();
+  const listed = await ctx.client.listTools().catch(() => ({ tools: [] }));
   const tools = [
     ...listToolsForScopes(ctx.scopes).map((tool) => ({
       name: tool.name,

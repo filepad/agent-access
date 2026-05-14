@@ -178,7 +178,7 @@ async function runDiagnosticMode(
     return;
   }
 
-  const runtimeTools = await client.listTools();
+  const runtimeTools = await client.listTools().catch(() => ({ tools: [] }));
   writeJson({
     status: 'ok',
     workspaceId: config.workspaceId,
