@@ -21,13 +21,10 @@ function makeClaudeCodePairResponse(): PairResponse {
       runtime: 'claude-code',
       configPath: '~/.claude/settings.json',
       server: {
-        command: 'npx',
-        args: ['-y', '@filepad/mcp-server@latest'],
-        env: {
-          FILEPAD_BASE_URL: 'https://api.filepad.ai',
-          FILEPAD_WORKSPACE_ID: 'ws_test',
-          FILEPAD_AGENT_KEY_ID: 'ik_test',
-          FILEPAD_AGENT_SECRET: 'secret_once',
+        transport: 'streamable_http',
+        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        headers: {
+          Authorization: 'Bearer fp_sess_test',
         },
       },
       restartInstruction: 'Restart Claude Code.',
@@ -151,9 +148,9 @@ describe('pairAgent Claude Code desired host state', () => {
       args: ['mcp', 'add-json', '-s', 'local', 'filepad', expect.any(String)],
     });
     expect(JSON.parse(mcpCommands[0]!.args[5]!)).toMatchObject({
-      command: 'npx',
-      args: ['-y', '@filepad/mcp-server@latest'],
-      env: { FILEPAD_WORKSPACE_ID: 'ws_test' },
+      transport: 'streamable_http',
+      url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+      headers: { Authorization: 'Bearer fp_sess_test' },
     });
     expect(settings.hooks['PreToolUse']?.[0]?.hooks[0]?.command).toContain(
       'claude-code-hooks',
@@ -186,9 +183,9 @@ describe('pairAgent Claude Code desired host state', () => {
     const mcpSettings = JSON.parse(await readFile(globalMcpConfigPath, 'utf8')) as {
       mcpServers: {
         filepad: {
-          command: string;
-          args: string[];
-          env: Record<string, string>;
+          transport: string;
+          url: string;
+          headers: Record<string, string>;
         };
       };
     };
@@ -196,15 +193,11 @@ describe('pairAgent Claude Code desired host state', () => {
       hooks: Record<string, unknown>;
     };
 
-    expect(mcpSettings.mcpServers.filepad).toMatchObject({
-      command: 'npx',
-      args: ['-y', '@filepad/mcp-server@latest'],
-      env: {
-        FILEPAD_BASE_URL: 'https://api.filepad.ai',
-        FILEPAD_WORKSPACE_ID: 'ws_test',
-        FILEPAD_AGENT_KEY_ID: 'ik_test',
-        FILEPAD_AGENT_SECRET: 'secret_once',
-      },
+    const servers = mcpSettings.mcpServers;
+    expect(servers['filepad']).toMatchObject({
+      transport: 'streamable_http',
+      url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+      headers: { Authorization: 'Bearer fp_sess_test' },
     });
     expect(hookSettings.hooks['PreToolUse']).toBeDefined();
     expect((await stat(globalMcpConfigPath)).mode & 0o777).toBe(0o600);
@@ -227,7 +220,7 @@ describe('pairAgent Claude Code desired host state', () => {
                 {
                   type: 'command',
                   command:
-                    'FILEPAD_HOOK_ENFORCEMENT_MODE=block node /home/alexkush/FilepadProd/packages/agent-hooks/dist/cli.js session-start',
+                    'FILEPAD_HOOK_ENFORCEMENT_MODE=block npx @filepad/agent-hooks session-start',
                 },
               ],
             },
@@ -235,9 +228,8 @@ describe('pairAgent Claude Code desired host state', () => {
         },
         mcpServers: {
           filepad: {
-            command: 'npx',
-            args: ['-y', '@filepad/mcp-server@latest'],
-            env: { FILEPAD_BASE_URL: 'https://api.filepad.ai' },
+            transport: 'streamable_http',
+            url: 'https://old.filepad.ai/mcp/v1/workspaces/ws_test/stream',
           },
         },
       }),

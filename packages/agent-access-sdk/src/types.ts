@@ -16,8 +16,7 @@ export type AgentAccessScope =
   | 'gmail:read'
   | 'gmail:write'
   | 'github:read'
-  | 'github:write'
-  | 'compute:run';
+  | 'github:write';
 
 export type AgentApiSearchMode = 'semantic' | 'keyword' | 'hybrid';
 
@@ -212,7 +211,7 @@ export interface AgentRuntimeTool {
     | 'read'
     | 'write'
     | 'search'
-    | 'compute'
+    | 'derive'
     | 'admin'
     | 'send'
     | 'delete';

@@ -1,14 +1,14 @@
 # @filepad/agent-connect
 
-Pre-MCP pairing CLI for Filepad Agent Access.
+Remote MCP pairing CLI for Filepad Agent Access.
 
 ```bash
 npx -y @filepad/agent-connect@latest pair A3K9MZ2X --runtime openclaw
 ```
 
-The command exchanges a short Filepad pairing code, writes the runtime MCP
-configuration, prints a concise handoff for the current agent session, and
-instructs the host to restart/reload MCP. After restart, call
+The command exchanges a short Filepad pairing code, writes the runtime's remote
+MCP endpoint configuration, prints a concise handoff for the current agent
+session, and instructs the host to restart/reload MCP. After restart, call
 `filepad_bootstrap`.
 
 That restart/reload message is an expected success state, not a pairing
@@ -27,10 +27,8 @@ The handoff also prints agent-facing probes:
 - public discovery: `/agent-api/v1/discovery`
 - authenticated HTTP bootstrap fallback:
   `/agent-api/v1/workspaces/{workspaceId}/bootstrap`
-- local MCP diagnostics: `filepad-mcp-server --health`, `--bootstrap`,
-  and `--tools`
-- direct fallback calls:
-  `filepad-mcp-server --call filepad_list_tree --args '{}'`
+- remote MCP stream:
+  `/mcp/v1/workspaces/{workspaceId}/stream`
 
 Use `--output json` for automation:
 

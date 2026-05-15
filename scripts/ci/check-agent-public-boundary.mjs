@@ -6,7 +6,7 @@
  * open-source/package boundary for:
  * - packages/agent-access-sdk
  * - packages/agent-connect
- * - packages/mcp-server
+ * - packages/claude-code-hooks
  * - docs/agent-access
  */
 
@@ -19,7 +19,6 @@ const PUBLIC_PACKAGES = [
   'packages/agent-access-sdk',
   'packages/agent-connect',
   'packages/claude-code-hooks',
-  'packages/mcp-server',
 ];
 const PUBLIC_DOCS = ['docs/agent-access'];
 const PUBLIC_EXAMPLES = ['examples'];
@@ -78,7 +77,9 @@ function listFiles(paths) {
   if (!output) {
     output = execSync(`find ${quoted} -type f`, { cwd: ROOT, encoding: 'utf8' }).trim();
   }
-  return output ? output.split('\n') : [];
+  return output
+    ? output.split('\n').filter((file) => existsSync(join(ROOT, file)))
+    : [];
 }
 
 function checkPackageMetadata(packageDir) {

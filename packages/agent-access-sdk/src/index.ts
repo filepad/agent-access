@@ -3,6 +3,7 @@
 export { FilepadAgentClient } from './client.js';
 export { FilepadAgentHttpClient } from './endpoints.js';
 export { McpAdapter } from './mcp.js';
+export { sendRemoteMcpMessage } from './remote-mcp.js';
 export { signRequest, buildCanonicalString, serializeBody, sha256Hex } from './auth.js';
 export {
   FilepadAgentError,
@@ -81,3 +82,7 @@ export type {
   ConstitutionCommunication,
   ConstitutionVocabularyEntry,
 } from './types.js';
+export type {
+  JsonRpcMessage,
+  RemoteMcpConfig,
+} from './remote-mcp.js';

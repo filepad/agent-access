@@ -19,13 +19,10 @@ function makePairResponse(): PairResponse {
       runtime: 'openclaw',
       configPath: '~/.openclaw/openclaw.json',
       server: {
-        command: 'npx',
-        args: ['-y', '@filepad/mcp-server@latest'],
-        env: {
-          FILEPAD_BASE_URL: 'https://api.filepad.ai',
-          FILEPAD_WORKSPACE_ID: 'ws_test',
-          FILEPAD_AGENT_KEY_ID: 'ik_test',
-          FILEPAD_AGENT_SECRET: 'secret_once',
+        transport: 'streamable_http',
+        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        headers: {
+          Authorization: 'Bearer fp_sess_test',
         },
       },
       restartInstruction: 'Restart OpenClaw MCP servers.',
@@ -84,19 +81,18 @@ describe('agent-connect pairing', () => {
         mcp: {
           servers: {
             filepad: {
-              command: string;
-              args: string[];
-              env: Record<string, string>;
+              transport: string;
+              url: string;
+              headers: Record<string, string>;
             };
           };
         };
       };
-      expect(config.mcp.servers.filepad.command).toBe('npx');
-      expect(config.mcp.servers.filepad.args).toEqual([
-        '-y',
-        '@filepad/mcp-server@latest',
-      ]);
-      expect(config.mcp.servers.filepad.env['FILEPAD_AGENT_SECRET']).toBe('secret_once');
+      expect(config.mcp.servers.filepad).toEqual({
+        transport: 'streamable_http',
+        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        headers: { Authorization: 'Bearer fp_sess_test' },
+      });
       expect((await stat(configPath)).mode & 0o777).toBe(0o600);
 
       const structured = JSON.parse(await readFile(outputPath, 'utf8')) as typeof result;
@@ -167,7 +163,10 @@ describe('agent-connect pairing', () => {
       expect(config.mcpServers).toBeUndefined();
       expect(config.mcp.enabled).toBe(true);
       expect(config.mcp.servers['other']?.command).toBe('other-tool');
-      expect(config.mcp.servers['filepad']?.command).toBe('npx');
+      expect(config.mcp.servers['filepad']).toMatchObject({
+        transport: 'streamable_http',
+        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+      });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

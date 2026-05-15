@@ -1,7 +1,7 @@
 {
   "name": "@filepad/agent-connect",
-  "version": "0.1.14",
-  "description": "Pre-MCP pairing CLI for Filepad Agent Access runtimes.",
+  "version": "0.1.16",
+  "description": "Remote MCP pairing CLI for Filepad Agent Access runtimes.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

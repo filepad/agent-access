@@ -1,4 +1,4 @@
-// FILE MEMO: Pre-MCP Filepad pairing helpers shared by the CLI and tests.
+// FILE MEMO: Remote Filepad MCP pairing helpers shared by the CLI and tests.
 
 import { execFile } from 'node:child_process';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -16,10 +16,10 @@ export type AgentRuntime =
   | 'codex'
   | 'generic-mcp';
 
-export type FilepadMcpServerConfig = {
-  command: string;
-  args: string[];
-  env: Record<string, string>;
+export type FilepadRemoteMcpServerConfig = {
+  transport: 'streamable_http' | 'sse';
+  url: string;
+  headers?: Record<string, string> | undefined;
 };
 
 export type AgentHostDesiredState = {
@@ -56,7 +56,7 @@ export type PairResponse = {
   hostConfig: {
     runtime: AgentRuntime;
     configPath: string;
-    server: FilepadMcpServerConfig;
+    server: FilepadRemoteMcpServerConfig;
     restartInstruction: string;
     requiresHostRestart?: boolean;
     nativeToolsAvailable?: boolean;
@@ -247,7 +247,7 @@ async function readJsonFile(path: string): Promise<Record<string, unknown>> {
 function patchMcpConfig(
   runtime: AgentRuntime,
   existing: Record<string, unknown>,
-  server: FilepadMcpServerConfig,
+  server: FilepadRemoteMcpServerConfig,
 ): Record<string, unknown> {
   if (runtime === 'openclaw') {
     const mcp = isRecord(existing['mcp']) ? existing['mcp'] : {};
@@ -281,13 +281,15 @@ function patchMcpConfig(
 async function writeRuntimeConfig(params: {
   runtime: AgentRuntime;
   configPath: string;
-  server: FilepadMcpServerConfig;
+  server: FilepadRemoteMcpServerConfig;
+  scope?: 'project' | 'user' | undefined;
   mcpCommandRunner?: ((command: string, args: string[]) => Promise<void>) | undefined;
 }): Promise<void> {
   if (params.runtime === 'claude-code') {
     try {
+      const claudeScope = params.scope === 'project' ? 'local' : 'user';
       const args = [
-        'mcp', 'add-json', '-s', 'local', 'filepad', JSON.stringify(params.server),
+        'mcp', 'add-json', '-s', claudeScope, 'filepad', JSON.stringify(params.server),
       ];
       if (params.mcpCommandRunner) {
         // Test seam — use provided runner
@@ -578,6 +580,7 @@ export async function pairAgent(options: PairOptions): Promise<PairResult> {
       runtime: options.runtime,
       configPath,
       server: response.hostConfig.server,
+      scope: desiredState?.scope,
       mcpCommandRunner: options.mcpCommandRunner,
     });
     result.wroteConfig = true;
@@ -592,12 +595,11 @@ export async function pairAgent(options: PairOptions): Promise<PairResult> {
           'HOOK_ADAPTER_MISSING: Claude Code hooks were requested, but Filepad did not provide a hook adapter command.',
         );
       }
-      const mcpEnv = response.hostConfig.server.env;
       const hookCredentials = {
-        baseUrl: mcpEnv['FILEPAD_BASE_URL'] ?? options.baseUrl,
-        workspaceId: mcpEnv['FILEPAD_WORKSPACE_ID'] ?? response.workspace.id,
-        keyId: mcpEnv['FILEPAD_AGENT_KEY_ID'] ?? response.credentials.agentKeyId,
-        secret: mcpEnv['FILEPAD_AGENT_SECRET'] ?? response.credentials.agentSecret,
+        baseUrl: options.baseUrl.replace(/\/+$/g, ''),
+        workspaceId: response.workspace.id,
+        keyId: response.credentials.agentKeyId,
+        secret: response.credentials.agentSecret,
       };
       const hookResult = await installClaudeCodeHooks({
         configPath: expandHome(desiredState?.hooks.configPath ?? configPath),
@@ -624,12 +626,10 @@ export function renderPairResult(result: PairResult): string {
     ? 'needs a host restart/reload'
     : 'is ready after your host refreshes its MCP tools';
   const mcpConfigLine = result.response.hostConfig.runtime === 'claude-code'
-    ? `MCP server ${result.wroteConfig ? 'registered' : 'prepared'}: ${result.lifecycle.configTarget}`
+    ? `Remote MCP server ${result.wroteConfig ? 'registered' : 'prepared'}: ${result.lifecycle.configTarget}`
     : `MCP config ${result.wroteConfig ? 'written' : 'prepared'}: ${result.configPath}`;
-  const baseUrl = result.response.hostConfig.server.env['FILEPAD_BASE_URL'];
-  const workspaceId =
-    result.response.hostConfig.server.env['FILEPAD_WORKSPACE_ID'] ??
-    result.response.workspace.id;
+  const baseUrl = baseUrlFromRemoteUrl(result.response.hostConfig.server.url);
+  const workspaceId = result.response.workspace.id;
   return [
     result.response.handoff.text,
     '',
@@ -650,6 +650,7 @@ export function renderPairResult(result: PairResult): string {
     `This is not a failure: the pairing worked, and this current agent session ${restartWord} before Filepad tools appear natively.`,
     `Next safe action: ${result.response.hostConfig.restartInstruction}`,
     `After the MCP reload, call ${result.lifecycle.afterRestartTool}.`,
+    `Remote MCP URL: ${result.response.hostConfig.server.url}`,
     '',
     'Agent-facing checks:',
     baseUrl
@@ -661,12 +662,20 @@ export function renderPairResult(result: PairResult): string {
     baseUrl
       ? `  HTTP bootstrap fallback: ${baseUrl.replace(/\/+$/g, '')}/agent-api/v1/workspaces/${workspaceId}/bootstrap (HMAC auth, or Authorization: Bearer <handoff.sessionToken> during setup)`
       : `  HTTP bootstrap fallback: /agent-api/v1/workspaces/${workspaceId}/bootstrap (HMAC auth, or Authorization: Bearer <handoff.sessionToken> during setup)`,
-    '  MCP CLI fallback: filepad-mcp-server --health | --bootstrap | --tools --with-schemas',
-    '  Direct tool fallback: filepad-mcp-server --call filepad_list_tree --args \'{}\'',
+    `  Remote MCP transport: ${result.response.hostConfig.server.transport}`,
+    `  Remote MCP endpoint: ${result.response.hostConfig.server.url}`,
     '',
     'Verify after restart/reload:',
     '  1. Confirm your host lists a Filepad MCP server.',
     `  2. Confirm native tools include ${result.lifecycle.afterRestartTool}.`,
-    '  3. If native tools are missing, run the MCP CLI fallback commands above before debugging the runtime.',
+    '  3. If native tools are missing, verify your host supports remote streamable HTTP MCP and that the bearer token has not expired.',
   ].join('\n');
+}
+
+function baseUrlFromRemoteUrl(remoteUrl: string): string | undefined {
+  try {
+    return new URL(remoteUrl).origin;
+  } catch {
+    return undefined;
+  }
 }
