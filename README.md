@@ -11,6 +11,7 @@ Public SDK and remote MCP pairing packages for connecting external AI agents to 
 | [@filepad/mcp-server](./packages/mcp-server) | 0.1.11 | Stdio MCP server used by native MCP hosts after pairing |
 | [@filepad/claude-code-hooks](./packages/claude-code-hooks) | 0.1.3 | Claude Code hook adapter used only by Claude Code runtime profiles |
 | [@filepad/guardian](./packages/guardian) | 0.1.0 | Local repo-runtime verifier for Active Contracts. Runs checks and reports target-bound evidence |
+| [@filepad/runtime-adapter-claude-code](./packages/runtime-adapter-claude-code) | 0.1.0 | Claude Code contract verification installer and doctor |
 
 ## Install
 
@@ -18,6 +19,7 @@ Public SDK and remote MCP pairing packages for connecting external AI agents to 
 npm install @filepad/agent-access-sdk
 npm install @filepad/mcp-server
 npx -y @filepad/agent-connect@latest pair ABC123 --runtime openclaw
+npx -y @filepad/runtime-adapter-claude-code@latest doctor
 ```
 
 ## Validate

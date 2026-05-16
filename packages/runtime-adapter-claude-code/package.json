@@ -1,12 +1,12 @@
 {
-  "name": "@filepad/guardian",
-  "version": "0.1.1",
-  "description": "Filepad Guardian — local evidence reporter for Active Contracts. Runs checks, captures provenance, reports evidence to Filepad.",
+  "name": "@filepad/runtime-adapter-claude-code",
+  "version": "0.1.0",
+  "description": "Filepad Claude Code runtime adapter — installs and verifies contract enforcement hooks for local repo execution.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "filepad-guardian": "dist/cli.js"
+    "filepad-runtime-adapter-claude-code": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -18,15 +18,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./executor": {
-      "types": "./dist/executor.d.ts",
-      "default": "./dist/executor.js"
     }
   },
   "scripts": {
-    "prebuild": "pnpm -C ../agent-access-sdk build",
-    "pretest": "pnpm -C ../agent-access-sdk build",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -34,18 +28,18 @@
   },
   "keywords": [
     "filepad",
-    "guardian",
+    "claude-code",
+    "runtime-adapter",
     "active-contracts",
-    "evidence",
-    "agent",
-    "accountability"
+    "guardian",
+    "hooks"
   ],
   "author": "Filepad <support@filepad.ai>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/filepad/agent-access.git",
-    "directory": "packages/guardian"
+    "directory": "packages/runtime-adapter-claude-code"
   },
   "bugs": {
     "url": "https://github.com/filepad/agent-access/issues"
@@ -57,13 +51,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
-    "@filepad/agent-access-sdk": "^0.1.6",
-    "chokidar": "^4.0.3",
-    "micromatch": "^4.0.8"
-  },
   "devDependencies": {
-    "@types/micromatch": "^4.0.9",
     "typescript": "5.9.3",
     "vitest": "^4.1.2"
   }

@@ -9,6 +9,7 @@
  * - packages/mcp-server
  * - packages/claude-code-hooks
  * - packages/guardian
+ * - packages/runtime-adapter-claude-code
  * - docs/agent-access
  */
 
@@ -23,6 +24,7 @@ const PUBLIC_PACKAGES = [
   'packages/mcp-server',
   'packages/claude-code-hooks',
   'packages/guardian',
+  'packages/runtime-adapter-claude-code',
 ];
 const PUBLIC_DOCS = ['docs/agent-access'];
 const PUBLIC_EXAMPLES = ['examples'];

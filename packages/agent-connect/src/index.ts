@@ -85,25 +85,6 @@ export type PairOptions = {
   outputPath?: string | undefined;
   dryRun?: boolean | undefined;
   fetchImpl?: typeof fetch | undefined;
-  /** Force Claude Code hook installation. Normally driven by backend desiredState. */
-  installHooks?: boolean | undefined;
-  /**
-   * Command used in runtime hook config.
-   * Defaults to the backend desiredState hook adapter command for the selected runtime.
-   * Override with a local path for development, e.g. "node /path/to/adapter/dist/cli.js".
-   */
-  hookCommand?: string | undefined;
-  /**
-   * Enforcement mode written to hook credentials.
-   * Defaults to 'block' when hooks are installed.
-   * Use 'block' to actively deny dangerous/out-of-contract actions.
-   */
-  hookEnforcementMode?: 'off' | 'observe' | 'warn' | 'block' | undefined;
-  /**
-   * Offline policy: what to do when Filepad backend is unreachable.
-   * Defaults to 'allow' (fail open). Use 'deny' with 'block' mode for strict enforcement.
-   */
-  hookOfflinePolicy?: 'allow' | 'deny' | undefined;
   /**
    * Test seam for host-native MCP registration. Production uses the runtime CLI
    * where required, e.g. `claude mcp add-json` for Claude Code.
@@ -151,31 +132,6 @@ function expandHome(path: string): string {
     return home ? join(home, path.slice(2)) : path;
   }
   return path;
-}
-
-function isFilepadHookCommand(value: unknown): boolean {
-  if (typeof value !== 'string') return false;
-  return (
-    value.includes('filepad-claude-code-hook') ||
-    value.includes('filepad-hook') ||
-    value.includes('@filepad/agent-hooks') ||
-    value.includes('@filepad/claude-code-hooks') ||
-    value.includes('/packages/agent-hooks/') ||
-    value.includes('\\packages\\agent-hooks\\')
-  );
-}
-
-function hookCommandFromDesiredState(
-  hooks: AgentHostDesiredState['hooks'] | undefined,
-): string | null {
-  if (!hooks?.enabled) return null;
-  if (hooks.adapterCommand) return hooks.adapterCommand;
-  if (!hooks.adapterPackage) return null;
-
-  const packageSpecifier = hooks.adapterVersion
-    ? `${hooks.adapterPackage}@${hooks.adapterVersion}`
-    : hooks.adapterPackage;
-  return `npx -y ${packageSpecifier}`;
 }
 
 function defaultConfigPath(runtime: AgentRuntime): string {
@@ -324,173 +280,6 @@ function runtimeConfigTarget(runtime: AgentRuntime): string {
     : 'mcpServers.filepad';
 }
 
-function defaultHooksCredentialsPath(credentials: {
-  workspaceId: string;
-  keyId: string;
-}): string {
-  const home = process.env['HOME'] ?? '.';
-  return join(
-    home,
-    '.config',
-    'filepad',
-    'connections',
-    'claude-code',
-    credentials.workspaceId,
-    `${credentials.keyId}.json`,
-  );
-}
-
-function stripFilepadHooks(settings: Record<string, unknown>): {
-  settings: Record<string, unknown>;
-  removedCount: number;
-} {
-  const hooks = isRecord(settings['hooks']) ? settings['hooks'] : null;
-  if (!hooks) return { settings, removedCount: 0 };
-
-  let removedCount = 0;
-  const nextHooks: Record<string, unknown> = { ...hooks };
-  for (const [event, entries] of Object.entries(hooks)) {
-    if (!Array.isArray(entries)) continue;
-    const kept = entries.filter((entry) => {
-      if (!isRecord(entry)) return true;
-      const hookItems = Array.isArray(entry['hooks']) ? entry['hooks'] : [];
-      const shouldRemove = hookItems.some((hook) =>
-        isRecord(hook) && isFilepadHookCommand(hook['command']),
-      );
-      if (shouldRemove) removedCount += 1;
-      return !shouldRemove;
-    });
-    if (kept.length > 0) nextHooks[event] = kept;
-    else delete nextHooks[event];
-  }
-
-  if (removedCount === 0) return { settings, removedCount };
-  const nextSettings = { ...settings };
-  if (Object.keys(nextHooks).length > 0) nextSettings['hooks'] = nextHooks;
-  else delete nextSettings['hooks'];
-  return { settings: nextSettings, removedCount };
-}
-
-async function cleanupLegacyClaudeCodeGlobalHooks(
-  activeConfigPath: string,
-): Promise<void> {
-  const legacyPath = expandHome('~/.claude/settings.json');
-  if (legacyPath === activeConfigPath) return;
-  const existing = await readJsonFile(legacyPath);
-  const stripped = stripFilepadHooks(existing);
-  if (stripped.removedCount === 0) return;
-  await mkdir(dirname(legacyPath), { recursive: true });
-  await writeFile(legacyPath, `${JSON.stringify(stripped.settings, null, 2)}\n`);
-}
-
-/**
- * Build the full Claude Code hooks config for Filepad enforcement.
- * Uses matcher "*" for tool events so Filepad sees every tool (not only Bash).
- * Covers all supported Claude Code hook events.
- */
-function buildClaudeCodeHooksConfig(
-  hookCmd: string,
-  env: Record<string, string>,
-): Record<string, unknown> {
-  // Tool events — require a matcher. "*" covers all tool names including mcp__...
-  const toolHookEntry = (event: string) => ({
-    matcher: '*',
-    hooks: [{ type: 'command', command: `${hookCmd} ${event}`, env }],
-  });
-  // Non-tool lifecycle events — no matcher field
-  const lifecycleHookEntry = (event: string) => ({
-    hooks: [{ type: 'command', command: `${hookCmd} ${event}`, env }],
-  });
-
-  return {
-    // ── Decision/control hooks ────────────────────────────────────────────────
-    PreToolUse:    [toolHookEntry('pre-tool-use')],
-    Stop:          [lifecycleHookEntry('stop')],
-
-    // ── Tool lifecycle hooks ──────────────────────────────────────────────────
-    PostToolUse:        [toolHookEntry('post-tool-use')],
-    PostToolUseFailure: [toolHookEntry('post-tool-use-failure')],
-    PostToolBatch:      [toolHookEntry('post-tool-batch')],
-    PermissionDenied:   [toolHookEntry('permission-denied')],
-
-    // ── Session lifecycle hooks ───────────────────────────────────────────────
-    SessionStart:   [lifecycleHookEntry('session-start')],
-    UserPromptSubmit: [lifecycleHookEntry('user-prompt-submit')],
-    SessionEnd:     [lifecycleHookEntry('session-end')],
-
-    // ── Task lifecycle hooks ──────────────────────────────────────────────────
-    TaskCreated:    [lifecycleHookEntry('task-created')],
-    TaskCompleted:  [lifecycleHookEntry('task-completed')],
-
-    // ── Subagent lifecycle hooks ──────────────────────────────────────────────
-    SubagentStart:  [lifecycleHookEntry('subagent-start')],
-    SubagentStop:   [lifecycleHookEntry('subagent-stop')],
-  };
-}
-
-async function installClaudeCodeHooks(params: {
-  configPath: string;
-  hookCommand: string;
-  enforcementMode: 'off' | 'observe' | 'warn' | 'block';
-  offlinePolicy: 'allow' | 'deny';
-  credentialsPath?: string | undefined;
-  credentials: {
-    baseUrl: string;
-    workspaceId: string;
-    keyId: string;
-    secret: string;
-  };
-}): Promise<{ credentialsPath: string }> {
-  const credentialsPath = expandHome(
-    params.credentialsPath ?? defaultHooksCredentialsPath({
-      workspaceId: params.credentials.workspaceId,
-      keyId: params.credentials.keyId,
-    }),
-  );
-  await mkdir(dirname(credentialsPath), { recursive: true });
-  await writeFile(
-    credentialsPath,
-    `${JSON.stringify({
-      ...params.credentials,
-      enforcementMode: params.enforcementMode,
-      offlinePolicy: params.offlinePolicy,
-    }, null, 2)}\n`,
-    { mode: 0o600 },
-  );
-
-  // Patch the configured Claude Code settings file to add hook commands.
-  const existing = await readJsonFile(params.configPath);
-  const existingHooks = isRecord(existing['hooks']) ? existing['hooks'] : {};
-  const hookEnv = {
-    FILEPAD_HOOK_ENFORCEMENT_MODE: params.enforcementMode,
-    FILEPAD_HOOK_OFFLINE_POLICY: params.offlinePolicy,
-    FILEPAD_HOOKS_CREDENTIALS_PATH: credentialsPath,
-  };
-  const newHooks = buildClaudeCodeHooksConfig(params.hookCommand, hookEnv);
-
-  // Merge: filepad hooks take precedence; preserve any other runtime hooks
-  const mergedHooks: Record<string, unknown> = { ...existingHooks };
-  for (const [event, hookList] of Object.entries(newHooks)) {
-    const existing_ = Array.isArray(mergedHooks[event]) ? (mergedHooks[event] as unknown[]) : [];
-    // Remove any previous filepad hook entries for this event, then prepend new ones
-    const filtered = existing_.filter((entry) => {
-      if (!isRecord(entry)) return true;
-      const hooks = Array.isArray(entry['hooks']) ? entry['hooks'] : [];
-      return !hooks.some((h) =>
-        isRecord(h) && isFilepadHookCommand(h['command']),
-      );
-    });
-    mergedHooks[event] = [...(hookList as unknown[]), ...filtered];
-  }
-
-  const updated = { ...existing, hooks: mergedHooks };
-  await mkdir(dirname(params.configPath), { recursive: true });
-  await writeFile(params.configPath, `${JSON.stringify(updated, null, 2)}\n`);
-  await cleanupLegacyClaudeCodeGlobalHooks(params.configPath);
-
-  return { credentialsPath };
-}
-
 async function postPair(params: PairOptions): Promise<PairResponse> {
   const fetchImpl = params.fetchImpl ?? fetch;
   const baseUrl = params.baseUrl.replace(/\/+$/g, '');
@@ -586,35 +375,6 @@ export async function pairAgent(options: PairOptions): Promise<PairResult> {
     result.wroteConfig = true;
     result.lifecycle.configWritten = true;
 
-    const hooksDesired = desiredState?.hooks.enabled === true;
-    if ((options.installHooks || hooksDesired) && options.runtime === 'claude-code') {
-      const hookCommand =
-        options.hookCommand ?? hookCommandFromDesiredState(desiredState?.hooks);
-      if (!hookCommand) {
-        throw new Error(
-          'HOOK_ADAPTER_MISSING: Claude Code hooks were requested, but Filepad did not provide a hook adapter command.',
-        );
-      }
-      const hookCredentials = {
-        baseUrl: options.baseUrl.replace(/\/+$/g, ''),
-        workspaceId: response.workspace.id,
-        keyId: response.credentials.agentKeyId,
-        secret: response.credentials.agentSecret,
-      };
-      const hookResult = await installClaudeCodeHooks({
-        configPath: expandHome(desiredState?.hooks.configPath ?? configPath),
-        hookCommand,
-        enforcementMode: options.hookEnforcementMode ?? desiredState?.hooks.enforcementMode ?? 'block',
-        offlinePolicy: options.hookOfflinePolicy ?? desiredState?.hooks.offlinePolicy ?? 'allow',
-        credentialsPath: desiredState?.hooks.credentialsPath ?? undefined,
-        credentials: hookCredentials,
-      });
-      result.hooksInstalled = true;
-      result.hooksCredentialsPath = hookResult.credentialsPath;
-      result.hookEnforcementMode = options.hookEnforcementMode ?? desiredState?.hooks.enforcementMode ?? 'block';
-      result.hookOfflinePolicy = options.hookOfflinePolicy ?? desiredState?.hooks.offlinePolicy ?? 'allow';
-    }
-
     await writeFile(structuredOutputPath, `${JSON.stringify(result, null, 2)}\n`);
   }
 
@@ -635,14 +395,8 @@ export function renderPairResult(result: PairResult): string {
     '',
     mcpConfigLine,
     `MCP config target: ${result.lifecycle.configTarget}`,
-    ...(result.hooksInstalled
-      ? [
-          `Hooks installed: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, PostToolBatch, PermissionDenied, SubagentStart, SubagentStop, TaskCreated, TaskCompleted, Stop, SessionEnd`,
-          `Hook enforcement mode: ${result.hookEnforcementMode ?? 'block'}`,
-          `Hook offline policy: ${result.hookOfflinePolicy ?? 'allow'}`,
-          `Hook credentials: ${result.hooksCredentialsPath ?? 'stored'}`,
-        ]
-      : ['Hooks: not requested by backend desired host state for this runtime']),
+    'Contract verification hooks: not installed by agent-connect.',
+    'Install Claude Code contract verification with @filepad/runtime-adapter-claude-code.',
     `Machine-readable result: ${result.structuredOutputPath}`,
     '',
     'Great, Filepad is connected.',

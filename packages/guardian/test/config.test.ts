@@ -1,5 +1,8 @@
 // TEST CATEGORY: unit
 import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadConfig } from '../src/config.js';
 
 describe('loadConfig', () => {
@@ -19,5 +22,27 @@ describe('loadConfig', () => {
   it('throws with missing env vars', () => {
     expect(() => loadConfig({})).toThrow(/Missing required environment variables/);
     expect(() => loadConfig({ FILEPAD_BASE_URL: 'x' })).toThrow(/FILEPAD_WORKSPACE_ID/);
+  });
+
+  it('loads runtime adapter credentials from FILEPAD_GUARDIAN_CREDENTIALS_PATH', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'filepad-guardian-config-'));
+    const path = join(dir, 'credentials.json');
+    try {
+      writeFileSync(path, JSON.stringify({
+        baseUrl: 'https://api.filepad.ai',
+        workspaceId: 'ws_test',
+        keyId: 'ik_test',
+        secret: 'secret123',
+      }));
+      const config = loadConfig({ FILEPAD_GUARDIAN_CREDENTIALS_PATH: path });
+      expect(config).toEqual({
+        baseUrl: 'https://api.filepad.ai',
+        workspaceId: 'ws_test',
+        keyId: 'ik_test',
+        secret: 'secret123',
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

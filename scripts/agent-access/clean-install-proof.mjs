@@ -40,6 +40,7 @@ run('pnpm -C packages/claude-code-hooks build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/mcp-server build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/agent-connect build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/guardian build', { cwd: MONOREPO_ROOT });
+run('pnpm -C packages/runtime-adapter-claude-code build', { cwd: MONOREPO_ROOT });
 
 log('Packing public packages...');
 const tarballs = [
@@ -48,6 +49,7 @@ const tarballs = [
   packPackage('packages/mcp-server'),
   packPackage('packages/agent-connect'),
   packPackage('packages/guardian'),
+  packPackage('packages/runtime-adapter-claude-code'),
 ];
 for (const tarball of tarballs) log(`Tarball: ${tarball}`);
 
@@ -64,6 +66,7 @@ try {
   const claudeHooksBin = join(tmpDir, 'node_modules/.bin/filepad-claude-code-hook');
   const mcpServerBin = join(tmpDir, 'node_modules/.bin/filepad-mcp-server');
   const guardianBin = join(tmpDir, 'node_modules/.bin/filepad-guardian');
+  const claudeRuntimeAdapterBin = join(tmpDir, 'node_modules/.bin/filepad-runtime-adapter-claude-code');
   if (!existsSync(agentConnectBin)) {
     fatal('filepad-agent-connect binary not found in node_modules/.bin');
   }
@@ -75,6 +78,9 @@ try {
   }
   if (!existsSync(guardianBin)) {
     fatal('filepad-guardian binary not found in node_modules/.bin');
+  }
+  if (!existsSync(claudeRuntimeAdapterBin)) {
+    fatal('filepad-runtime-adapter-claude-code binary not found in node_modules/.bin');
   }
 
   log('Testing Agent Connect usage error...');
@@ -122,6 +128,17 @@ try {
     fatal(`Unexpected Guardian output:\n${guardianHelp}`);
   }
 
+  log('Testing Claude Code runtime adapter missing manifest...');
+  try {
+    run(`"${claudeRuntimeAdapterBin}" doctor`, { cwd: tmpDir });
+    fatal('Expected Claude Code runtime adapter doctor to fail without manifest');
+  } catch (error) {
+    const output = error.stderr || error.stdout || '';
+    if (!output.includes('Runtime manifest missing or invalid')) {
+      fatal(`Unexpected Claude Code runtime adapter output:\n${output}`);
+    }
+  }
+
   log('');
   log('CLEAN INSTALL PROOF PASSED');
   log('Public packages install cleanly outside the monorepo');
@@ -129,6 +146,7 @@ try {
   log('Claude Code hook adapter CLI is executable');
   log('MCP server CLI is executable');
   log('Guardian CLI is executable');
+  log('Claude Code runtime adapter CLI is executable');
 } catch (error) {
   fatal(error.message);
 } finally {

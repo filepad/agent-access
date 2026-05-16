@@ -13,7 +13,9 @@
       "@filepad/claude-code-hooks": ["packages/claude-code-hooks/src/index.ts"],
       "@filepad/claude-code-hooks/*": ["packages/claude-code-hooks/src/*"],
       "@filepad/guardian": ["packages/guardian/src/index.ts"],
-      "@filepad/guardian/*": ["packages/guardian/src/*"]
+      "@filepad/guardian/*": ["packages/guardian/src/*"],
+      "@filepad/runtime-adapter-claude-code": ["packages/runtime-adapter-claude-code/src/index.ts"],
+      "@filepad/runtime-adapter-claude-code/*": ["packages/runtime-adapter-claude-code/src/*"]
     }
   }
 }

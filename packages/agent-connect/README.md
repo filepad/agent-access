@@ -11,6 +11,9 @@ MCP endpoint configuration, prints a concise handoff for the current agent
 session, and instructs the host to restart/reload MCP. After restart, call
 `filepad_bootstrap`.
 
+This package does not install contract verification hooks. Claude Code contract
+verification is owned by `@filepad/runtime-adapter-claude-code`.
+
 That restart/reload message is an expected success state, not a pairing
 failure. Some runtimes, including Codex, load MCP tools only when a session
 starts; the CLI therefore reports `paired=true`, `configWritten=true`,
