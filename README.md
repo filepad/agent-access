@@ -9,7 +9,8 @@ Public SDK and remote MCP pairing packages for connecting external AI agents to 
 | [@filepad/agent-access-sdk](./packages/agent-access-sdk) | 0.1.6 | TypeScript client for Agent Access HTTP APIs |
 | [@filepad/agent-connect](./packages/agent-connect) | 0.1.16 | Pairing CLI that installs remote MCP endpoint config for OpenClaw, Claude Code, Codex, Cursor, and Windsurf |
 | [@filepad/mcp-server](./packages/mcp-server) | 0.1.11 | Stdio MCP server used by native MCP hosts after pairing |
-| [@filepad/claude-code-hooks](./packages/claude-code-hooks) | 0.1.2 | Claude Code hook adapter used only by Claude Code runtime profiles |
+| [@filepad/claude-code-hooks](./packages/claude-code-hooks) | 0.1.3 | Claude Code hook adapter used only by Claude Code runtime profiles |
+| [@filepad/guardian](./packages/guardian) | 0.1.0 | Local repo-runtime verifier for Active Contracts. Runs checks and reports target-bound evidence |
 
 ## Install
 

@@ -39,6 +39,7 @@ run('pnpm -C packages/agent-access-sdk build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/claude-code-hooks build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/mcp-server build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/agent-connect build', { cwd: MONOREPO_ROOT });
+run('pnpm -C packages/guardian build', { cwd: MONOREPO_ROOT });
 
 log('Packing public packages...');
 const tarballs = [
@@ -46,6 +47,7 @@ const tarballs = [
   packPackage('packages/claude-code-hooks'),
   packPackage('packages/mcp-server'),
   packPackage('packages/agent-connect'),
+  packPackage('packages/guardian'),
 ];
 for (const tarball of tarballs) log(`Tarball: ${tarball}`);
 
@@ -61,6 +63,7 @@ try {
   const agentConnectBin = join(tmpDir, 'node_modules/.bin/filepad-agent-connect');
   const claudeHooksBin = join(tmpDir, 'node_modules/.bin/filepad-claude-code-hook');
   const mcpServerBin = join(tmpDir, 'node_modules/.bin/filepad-mcp-server');
+  const guardianBin = join(tmpDir, 'node_modules/.bin/filepad-guardian');
   if (!existsSync(agentConnectBin)) {
     fatal('filepad-agent-connect binary not found in node_modules/.bin');
   }
@@ -69,6 +72,9 @@ try {
   }
   if (!existsSync(mcpServerBin)) {
     fatal('filepad-mcp-server binary not found in node_modules/.bin');
+  }
+  if (!existsSync(guardianBin)) {
+    fatal('filepad-guardian binary not found in node_modules/.bin');
   }
 
   log('Testing Agent Connect usage error...');
@@ -110,12 +116,19 @@ try {
     }
   }
 
+  log('Testing Guardian help...');
+  const guardianHelp = run(`"${guardianBin}" --help`, { cwd: tmpDir });
+  if (!guardianHelp.includes('Filepad Guardian') || !guardianHelp.includes('filepad-guardian run')) {
+    fatal(`Unexpected Guardian output:\n${guardianHelp}`);
+  }
+
   log('');
   log('CLEAN INSTALL PROOF PASSED');
   log('Public packages install cleanly outside the monorepo');
   log('Agent Connect CLI is executable');
   log('Claude Code hook adapter CLI is executable');
   log('MCP server CLI is executable');
+  log('Guardian CLI is executable');
 } catch (error) {
   fatal(error.message);
 } finally {

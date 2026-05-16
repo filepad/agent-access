@@ -8,6 +8,7 @@
  * - packages/agent-connect
  * - packages/mcp-server
  * - packages/claude-code-hooks
+ * - packages/guardian
  * - docs/agent-access
  */
 
@@ -21,6 +22,7 @@ const PUBLIC_PACKAGES = [
   'packages/agent-connect',
   'packages/mcp-server',
   'packages/claude-code-hooks',
+  'packages/guardian',
 ];
 const PUBLIC_DOCS = ['docs/agent-access'];
 const PUBLIC_EXAMPLES = ['examples'];

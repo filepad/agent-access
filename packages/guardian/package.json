@@ -1,12 +1,12 @@
 {
-  "name": "@filepad/claude-code-hooks",
-  "version": "0.1.3",
-  "description": "Filepad Claude Code hook adapter — PreToolUse/PostToolUse/Stop hooks for live contract enforcement.",
+  "name": "@filepad/guardian",
+  "version": "0.1.0",
+  "description": "Filepad Guardian — local evidence reporter for Active Contracts. Runs checks, captures provenance, reports evidence to Filepad.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "filepad-claude-code-hook": "dist/cli.js"
+    "filepad-guardian": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -19,9 +19,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./cli": {
-      "types": "./dist/cli.d.ts",
-      "default": "./dist/cli.js"
+    "./executor": {
+      "types": "./dist/executor.d.ts",
+      "default": "./dist/executor.js"
     }
   },
   "scripts": {
@@ -34,17 +34,18 @@
   },
   "keywords": [
     "filepad",
-    "claude-code-hooks",
-    "claude-code",
+    "guardian",
     "active-contracts",
-    "enforcement"
+    "evidence",
+    "agent",
+    "accountability"
   ],
   "author": "Filepad <support@filepad.ai>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/filepad/agent-access.git",
-    "directory": "packages/claude-code-hooks"
+    "directory": "packages/guardian"
   },
   "bugs": {
     "url": "https://github.com/filepad/agent-access/issues"
@@ -57,9 +58,12 @@
     "access": "public"
   },
   "dependencies": {
-    "@filepad/agent-access-sdk": "^0.1.6"
+    "@filepad/agent-access-sdk": "^0.1.6",
+    "chokidar": "^4.0.3",
+    "micromatch": "^4.0.8"
   },
   "devDependencies": {
+    "@types/micromatch": "^4.0.9",
     "typescript": "5.9.3",
     "vitest": "^4.1.2"
   }

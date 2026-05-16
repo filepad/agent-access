@@ -11,7 +11,9 @@
       "@filepad/mcp-server": ["packages/mcp-server/src/index.ts"],
       "@filepad/mcp-server/*": ["packages/mcp-server/src/*"],
       "@filepad/claude-code-hooks": ["packages/claude-code-hooks/src/index.ts"],
-      "@filepad/claude-code-hooks/*": ["packages/claude-code-hooks/src/*"]
+      "@filepad/claude-code-hooks/*": ["packages/claude-code-hooks/src/*"],
+      "@filepad/guardian": ["packages/guardian/src/index.ts"],
+      "@filepad/guardian/*": ["packages/guardian/src/*"]
     }
   }
 }

@@ -25,3 +25,12 @@ npx -y @filepad/claude-code-hooks@latest --help
 
 The hook adapter reads credentials from `FILEPAD_HOOKS_CREDENTIALS_PATH`, which
 is written by `@filepad/agent-connect` during pairing.
+
+## Contract Verification Boundary
+
+This package does not install, spawn, or supervise Guardian.
+
+Contract verification is owned by a separate runtime-adapter/Guardian setup
+flow. Claude Code hooks may surface contract state and enforce backend
+decisions, but they must not silently pretend Guardian is active when the
+Guardian package is missing.

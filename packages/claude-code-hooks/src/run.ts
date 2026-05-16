@@ -6,7 +6,6 @@ import { handleStop } from './handlers/stop.js';
 import { handlePostToolUse } from './handlers/post-tool-use.js';
 import { handleEvent } from './handlers/event.js';
 import { handleSessionStart } from './handlers/session-start.js';
-import { spawnGuardianForSession, stopGuardianForSession } from './guardian-spawn.js';
 import { reportHookHealth, type HealthContext } from './health.js';
 import {
   SUPPORTED_HOOK_COMMANDS,
@@ -194,14 +193,10 @@ export async function runHookCommand(options: RunOptions): Promise<RunResult> {
         sessionId, inputParsed: true, credentialsLoaded: true, backendReachable: true,
         stdout, backendDecision: 'called',
       });
-      // Spawn guardian in background — fail silently if not available
-      void spawnGuardianForSession(sessionId, credentials);
       return { stdout, stderr: [], exitCode: 0 };
     }
 
     if (command === 'session-end') {
-      // Stop guardian spawned for this session
-      await stopGuardianForSession(sessionId);
       const inputRecord = input && typeof input === 'object' && !Array.isArray(input)
         ? (input as Record<string, unknown>) : {};
       const { output } = await handleEvent(command, inputRecord, client, mode);
