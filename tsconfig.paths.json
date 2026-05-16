@@ -8,6 +8,8 @@
       "@filepad/agent-access-sdk/*": ["packages/agent-access-sdk/src/*"],
       "@filepad/agent-connect": ["packages/agent-connect/src/index.ts"],
       "@filepad/agent-connect/*": ["packages/agent-connect/src/*"],
+      "@filepad/mcp-server": ["packages/mcp-server/src/index.ts"],
+      "@filepad/mcp-server/*": ["packages/mcp-server/src/*"],
       "@filepad/claude-code-hooks": ["packages/claude-code-hooks/src/index.ts"],
       "@filepad/claude-code-hooks/*": ["packages/claude-code-hooks/src/*"]
     }

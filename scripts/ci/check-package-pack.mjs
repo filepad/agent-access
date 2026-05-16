@@ -13,7 +13,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -156,6 +156,11 @@ try {
     const normalized = value.replace(/^\.\//, '');
     if (!tarballFileList.includes(normalized)) {
       fatal(`package.json bin "${name}" points to missing packed file: ${value}`);
+    }
+    const binPath = join(extractedRoot, normalized);
+    const mode = statSync(binPath).mode;
+    if ((mode & 0o111) === 0) {
+      fatal(`package.json bin "${name}" is not executable in the packed artifact: ${value}`);
     }
   }
   info('Declared entrypoints and bins exist in package');

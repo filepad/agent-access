@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.paths.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node", "vitest/globals"],
+    "strictNullChecks": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "tsBuildInfoFile": "./.tsbuildinfo",
+    "paths": {
+      "@filepad/agent-access-sdk": ["packages/agent-access-sdk/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

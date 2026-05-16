@@ -1,0 +1,67 @@
+{
+  "name": "@filepad/mcp-server",
+  "version": "0.1.11",
+  "description": "MCP server for Filepad Agent Access. Exposes Filepad workspaces as tools to Claude Desktop, Cursor, and other MCP clients.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "filepad-mcp-server": "./bin/filepad-mcp-server.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "pnpm -C ../agent-access-sdk build",
+    "pretest": "pnpm -C ../agent-access-sdk build",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/cli.js",
+    "pack:check": "node ../../scripts/ci/check-package-pack.mjs"
+  },
+  "keywords": [
+    "filepad",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "ai",
+    "claude",
+    "cursor"
+  ],
+  "author": "Filepad <support@filepad.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filepad/agent-access.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/filepad/agent-access/issues"
+  },
+  "homepage": "https://github.com/filepad/agent-access#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@filepad/agent-access-sdk": "^0.1.6",
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
+  }
+}
