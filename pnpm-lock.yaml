@@ -87,6 +87,40 @@ importers:
         specifier: ^4.1.2
         version: 4.1.6(@types/node@22.19.19)(vite@8.0.13(@types/node@22.19.19))
 
+  packages/runtime-adapter-claude-code:
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.6(@types/node@22.19.19)(vite@8.0.13(@types/node@22.19.19))
+
+  packages/sdk:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(zod@4.4.3)
+      chokidar:
+        specifier: ^4.0.3
+        version: 4.0.3
+      micromatch:
+        specifier: ^4.0.8
+        version: 4.0.8
+    devDependencies:
+      '@types/micromatch':
+        specifier: ^4.0.9
+        version: 4.0.10
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.19
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.6(@types/node@22.19.19)(vite@8.0.13(@types/node@22.19.19))
+
 packages:
 
   '@emnapi/core@1.10.0':

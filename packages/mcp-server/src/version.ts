@@ -1,1 +1,0 @@
-export const FILEPAD_MCP_SERVER_VERSION = '0.1.11';
