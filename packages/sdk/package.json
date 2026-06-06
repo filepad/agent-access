@@ -1,0 +1,86 @@
+{
+  "name": "@filepad/sdk",
+  "version": "0.1.0",
+  "description": "Official SDK for connecting agents to Filepad — MCP server, contract hooks, A2A client, and CLI.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "filepad": "./bin/filepad.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "default": "./dist/hooks/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "./a2a": {
+      "types": "./dist/a2a/index.d.ts",
+      "default": "./dist/a2a/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "pack:check": "node ../../scripts/ci/check-package-pack.mjs"
+  },
+  "keywords": [
+    "filepad",
+    "agent",
+    "mcp",
+    "a2a",
+    "model-context-protocol",
+    "active-contracts",
+    "claude",
+    "cursor",
+    "ai",
+    "workspace"
+  ],
+  "author": "Filepad <support@filepad.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filepad/agent-access.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/filepad/agent-access/issues"
+  },
+  "homepage": "https://github.com/filepad/agent-access#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "chokidar": "^4.0.3",
+    "micromatch": "^4.0.8"
+  },
+  "devDependencies": {
+    "@types/micromatch": "^4.0.9",
+    "@types/node": "^22.10.2",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
+  }
+}
