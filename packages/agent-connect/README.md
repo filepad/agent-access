@@ -31,7 +31,7 @@ The handoff also prints agent-facing probes:
 - authenticated HTTP bootstrap fallback:
   `/agent-api/v1/workspaces/{workspaceId}/bootstrap`
 - remote MCP stream:
-  `/mcp/v1/workspaces/{workspaceId}/stream`
+  `/mcp`
 
 Use `--output json` for automation:
 

@@ -1,10 +1,6 @@
-// FILE MEMO: Thin MCP-compatible adapter over the Agent Access client.
-
-import type { GetMcpPromptsResponse, GetMcpResourcesResponse, McpPrompt, McpResource } from './types.js';
+// FILE MEMO: Agent API resource helper used by SDK callers. Official MCP access uses the remote /mcp endpoint.
 
 interface McpAdapterClient {
-  getMcpPrompts(): Promise<GetMcpPromptsResponse>;
-  getMcpResources(): Promise<GetMcpResourcesResponse>;
   getMailbox(options?: {
     limit?: number;
     unreadOnly?: boolean;
@@ -18,15 +14,6 @@ interface McpAdapterClient {
 export class McpAdapter {
   constructor(private readonly client: McpAdapterClient) {}
 
-  async listPrompts(): Promise<McpPrompt[]> {
-    const res = await this.client.getMcpPrompts();
-    return res.prompts;
-  }
-
-  async listResources(): Promise<McpResource[]> {
-    const res = await this.client.getMcpResources();
-    return res.resources;
-  }
 
   /**
    * Read the content of an MCP resource by its stable URI.

@@ -280,6 +280,32 @@ function runtimeConfigTarget(runtime: AgentRuntime): string {
     : 'mcpServers.filepad';
 }
 
+function assertCanonicalRemoteMcpServer(server: FilepadRemoteMcpServerConfig): void {
+  if (server.transport !== 'streamable_http') {
+    throw new Error(
+      'MCP_REMOTE_TRANSPORT_UNSUPPORTED: Filepad remote MCP requires streamable_http, got ' + server.transport,
+    );
+  }
+
+  let url: URL;
+  try {
+    url = new URL(server.url);
+  } catch {
+    throw new Error('MCP_REMOTE_URL_INVALID: ' + server.url);
+  }
+
+  const pathname = url.pathname.replace(/\/+$/g, '') || '/';
+  if (pathname === '/mcp') return;
+  if (pathname.startsWith('/mcp/v1/')) {
+    throw new Error(
+      'MCP_LEGACY_ENDPOINT_REMOVED: Filepad remote MCP is ' + url.origin + '/mcp. Refusing legacy endpoint ' + server.url,
+    );
+  }
+  throw new Error(
+    'MCP_REMOTE_URL_NOT_CANONICAL: Filepad remote MCP must use ' + url.origin + '/mcp, got ' + server.url,
+  );
+}
+
 async function postPair(params: PairOptions): Promise<PairResponse> {
   const fetchImpl = params.fetchImpl ?? fetch;
   const baseUrl = params.baseUrl.replace(/\/+$/g, '');
@@ -318,6 +344,7 @@ async function postPair(params: PairOptions): Promise<PairResponse> {
 
 export async function pairAgent(options: PairOptions): Promise<PairResult> {
   const response = await postPair(options);
+  assertCanonicalRemoteMcpServer(response.hostConfig.server);
   const desiredState = response.hostConfig.desiredState;
   const configPath = expandHome(
     options.configPath ??

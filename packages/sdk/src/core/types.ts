@@ -173,31 +173,6 @@ export interface GetAgentApiPromptsResponse {
   prompts: AgentApiPrompt[];
 }
 
-export interface McpPrompt {
-  name: string;
-  title: string;
-  description: string;
-  arguments: unknown[];
-  resourceUri: string;
-  contentUrl: string;
-}
-
-export interface GetMcpPromptsResponse {
-  prompts: McpPrompt[];
-}
-
-export interface McpResource {
-  uri: string;
-  name: string;
-  title: string;
-  description: string | null;
-  mimeType: string;
-  contentUrl?: string | undefined;
-}
-
-export interface GetMcpResourcesResponse {
-  resources: McpResource[];
-}
 
 export interface AgentRuntimeTool {
   name: string;

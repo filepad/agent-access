@@ -1,16 +1,15 @@
 # Remote MCP Production Architecture
 
-Remote MCP is hosted by the Filepad backend at
-`/mcp/v1/workspaces/{workspaceId}/stream`.
+Remote MCP is hosted by the Filepad backend at `/mcp`.
 
-The backend owns authentication, workspace authorization, tool discovery, tool
+The backend owns OAuth resource binding, workspace authorization, tool discovery, tool
 execution, evidence recording, contract context, and audit emission. Agent
 hosts own only local runtime configuration and optional runtime hooks.
 
 The production path is:
 
 ```text
-Agent runtime -> remote MCP endpoint -> Agent Access auth -> RuntimeTool bridge
+Agent runtime -> /mcp -> Agent Access auth -> ExternalAgentKernel
               -> workspace services -> artifacts/contracts/evidence
 ```
 

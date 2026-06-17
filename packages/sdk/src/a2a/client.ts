@@ -1,12 +1,17 @@
-// A2A v0.3 outbound client — send tasks to a Filepad workspace via A2A JSON-RPC.
+// A2A v0.3 outbound client — submit tasks to a Filepad workspace via A2A JSON-RPC.
 
 import { randomUUID } from 'node:crypto';
-import type { A2ATask, A2ATaskResult, A2AMessage } from '../core/types.js';
+import type { A2AMessage, A2ATask } from '../core/types.js';
 
 export interface A2AClientConfig {
   baseUrl: string;
   bearerToken: string;
   workspaceId: string;
+}
+
+export interface SendTaskOptions {
+  metadata?: Record<string, unknown> | undefined;
+  acceptedOutputModes?: string[] | undefined;
 }
 
 function rpcBody(method: string, params: unknown, id?: string) {
@@ -36,8 +41,7 @@ async function jsonRpc<T>(
   return parsed.result as T;
 }
 
-function extractResultText(task: A2ATask): string {
-  // Try artifacts first
+export function extractTaskText(task: A2ATask): string {
   const artifact = task.artifacts?.[0];
   if (artifact) {
     const textParts = artifact.parts.filter((p) => p.kind === 'text');
@@ -45,7 +49,6 @@ function extractResultText(task: A2ATask): string {
       return textParts.map((p) => (p.kind === 'text' ? p.text : '')).join('\n');
     }
   }
-  // Fall back to status message
   const msg = task.status.message;
   if (msg) {
     return msg.parts
@@ -59,57 +62,27 @@ function extractResultText(task: A2ATask): string {
 export async function sendTask(
   config: A2AClientConfig,
   text: string,
-  options?: { timeoutMs?: number },
-): Promise<A2ATaskResult> {
-  const timeoutMs = options?.timeoutMs ?? 300_000;
+  options?: SendTaskOptions,
+): Promise<A2ATask> {
   const endpointUrl = `${config.baseUrl.replace(/\/$/, '')}/a2a`;
-  const startMs = Date.now();
-
   const message: A2AMessage = {
     kind: 'message',
     messageId: randomUUID(),
     role: 'user',
     parts: [{ kind: 'text', text }],
+    ...(options?.metadata ? { metadata: options.metadata } : {}),
   };
 
-  // Try blocking first (server waits up to 30s before returning)
-  let task = await jsonRpc<A2ATask>(endpointUrl, config.bearerToken, 'message/send', {
+  return jsonRpc<A2ATask>(endpointUrl, config.bearerToken, 'message/send', {
     message,
-    configuration: { blocking: true, acceptedOutputModes: ['text/plain'] },
+    configuration: {
+      blocking: false,
+      acceptedOutputModes: options?.acceptedOutputModes ?? ['text/plain'],
+    },
   });
-
-  const terminalStates = new Set(['completed', 'failed', 'canceled', 'rejected']);
-
-  // If not terminal, poll until terminal or timeout
-  if (!terminalStates.has(task.status.state)) {
-    const taskId = task.id;
-    const pollIntervalMs = 2_000;
-    while (!terminalStates.has(task.status.state)) {
-      if (Date.now() - startMs > timeoutMs) {
-        throw new Error(`A2A task ${taskId} timed out after ${timeoutMs}ms (state: ${task.status.state})`);
-      }
-      await new Promise((r) => setTimeout(r, pollIntervalMs));
-      task = await jsonRpc<A2ATask>(endpointUrl, config.bearerToken, 'tasks/get', {
-        id: taskId,
-      });
-    }
-  }
-
-  if (task.status.state === 'failed') {
-    throw new Error(`A2A task failed: ${extractResultText(task) || task.status.state}`);
-  }
-  if (task.status.state === 'canceled' || task.status.state === 'rejected') {
-    throw new Error(`A2A task ${task.status.state}`);
-  }
-
-  return {
-    taskId: task.id,
-    contextId: task.contextId,
-    result: extractResultText(task),
-    rawTask: task,
-    executionMs: Date.now() - startMs,
-  };
 }
+
+export const submitTask = sendTask;
 
 export async function getTask(
   config: A2AClientConfig,

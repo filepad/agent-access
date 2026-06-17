@@ -20,7 +20,7 @@ function makePairResponse(): PairResponse {
       configPath: '~/.openclaw/openclaw.json',
       server: {
         transport: 'streamable_http',
-        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        url: 'https://api.filepad.ai/mcp',
         headers: {
           Authorization: 'Bearer fp_sess_test',
         },
@@ -90,7 +90,7 @@ describe('agent-connect pairing', () => {
       };
       expect(config.mcp.servers.filepad).toEqual({
         transport: 'streamable_http',
-        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        url: 'https://api.filepad.ai/mcp',
         headers: { Authorization: 'Bearer fp_sess_test' },
       });
       expect((await stat(configPath)).mode & 0o777).toBe(0o600);
@@ -165,8 +165,36 @@ describe('agent-connect pairing', () => {
       expect(config.mcp.servers['other']?.command).toBe('other-tool');
       expect(config.mcp.servers['filepad']).toMatchObject({
         transport: 'streamable_http',
-        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        url: 'https://api.filepad.ai/mcp',
       });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects legacy workspace-scoped MCP endpoints before writing config', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'filepad-agent-connect-'));
+    const configPath = join(dir, 'openclaw.json');
+    const outputPath = join(dir, 'result.json');
+    const response = makePairResponse();
+    response.hostConfig.server.url = 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream';
+    const fetchImpl: typeof fetch = async () =>
+      new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+
+    try {
+      await expect(
+        pairAgent({
+          code: 'A3K9MZ2X',
+          runtime: 'openclaw',
+          baseUrl: 'https://api.filepad.ai',
+          configPath,
+          outputPath,
+          fetchImpl,
+        }),
+      ).rejects.toThrow('MCP_LEGACY_ENDPOINT_REMOVED');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -2,7 +2,7 @@
 
 import { FilepadAgentClient } from './client.js';
 import type { FilepadAgentClientConfig } from './types.js';
-import type { A2AInboundTask, A2ATaskResult } from './types.js';
+import type { A2AInboundTask, A2ATask } from './types.js';
 import { createHookClient } from '../hooks/client.js';
 import { createGuardianClient } from '../contracts/client.js';
 import { sendTask, type A2AClientConfig } from '../a2a/client.js';
@@ -16,6 +16,7 @@ export interface FilePadConfig {
   };
   baseUrl?: string;
   displayName?: string;
+  a2aBearerToken?: string;
   timeoutMs?: number;
   maxRetries?: number;
 }
@@ -59,8 +60,6 @@ export class FilePad {
   getFileTree() { return this._client.getFileTree(); }
   getFile(fileNodeId: string) { return this._client.getFile(fileNodeId); }
   getPrompts() { return this._client.getPrompts(); }
-  getMcpPrompts() { return this._client.getMcpPrompts(); }
-  getMcpResources() { return this._client.getMcpResources(); }
   getConstitution() { return this._client.getConstitution(); }
   getConstitutionHistory() { return this._client.getConstitutionHistory(); }
   exportConstitutionMarkdown() { return this._client.exportConstitutionMarkdown(); }
@@ -128,10 +127,13 @@ export class FilePad {
 
   // ── A2A outbound — send task to Filepad ───────────────────────────────────
 
-  async task(text: string, options?: { timeoutMs?: number }): Promise<A2ATaskResult> {
+  async task(text: string, options?: { metadata?: Record<string, unknown> }): Promise<A2ATask> {
+    if (!this._config.a2aBearerToken) {
+      throw new Error('A2A_BEARER_TOKEN_REQUIRED: pass a Filepad A2A bearer token in FilePadConfig.a2aBearerToken');
+    }
     const a2aConfig: A2AClientConfig = {
       baseUrl: this._config.baseUrl ?? 'https://app.filepad.com',
-      bearerToken: '', // populated via HMAC auth header at the transport layer
+      bearerToken: this._config.a2aBearerToken,
       workspaceId: this._config.workspaceId,
     };
     return sendTask(a2aConfig, text, options);

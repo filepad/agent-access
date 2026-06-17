@@ -60,17 +60,6 @@ describe('FilepadAgentClient integration', () => {
     expect(Array.isArray(prompts.prompts)).toBe(true);
   });
 
-  it('discovers MCP prompts', async () => {
-    if (!client) return;
-    const mcp = await client.getMcpPrompts();
-    expect(Array.isArray(mcp.prompts)).toBe(true);
-  });
-
-  it('discovers MCP resources', async () => {
-    if (!client) return;
-    const mcp = await client.getMcpResources();
-    expect(Array.isArray(mcp.resources)).toBe(true);
-  });
 
   it('searches workspace', async () => {
     if (!client) return;

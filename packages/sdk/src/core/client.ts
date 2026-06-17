@@ -9,8 +9,6 @@ import type {
   GetAgentApiEnvironmentResponse,
   GetAgentApiFileTreeResponse,
   GetAgentApiPromptsResponse,
-  GetMcpPromptsResponse,
-  GetMcpResourcesResponse,
   SearchAgentApiWorkspaceRequest,
   SearchAgentApiWorkspaceResponse,
   GetAgentApiFileResponse,
@@ -137,17 +135,6 @@ export class FilepadAgentClient {
     );
   }
 
-  async getMcpPrompts(): Promise<GetMcpPromptsResponse> {
-    return this.http.get<GetMcpPromptsResponse>(
-      `/mcp/v1/workspaces/${encodeURIComponent(this.workspaceId)}/prompts`,
-    );
-  }
-
-  async getMcpResources(): Promise<GetMcpResourcesResponse> {
-    return this.http.get<GetMcpResourcesResponse>(
-      `/mcp/v1/workspaces/${encodeURIComponent(this.workspaceId)}/resources`,
-    );
-  }
 
   async listTools(): Promise<ListAgentToolsResponse> {
     return this.http.get<ListAgentToolsResponse>(

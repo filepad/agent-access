@@ -95,6 +95,6 @@ export { doctorClaudeCodeRuntime } from './install/doctor.js';
 export { buildClaudeCodeHooksConfig, mergeClaudeCodeHooks } from './install/claude-settings.js';
 
 // ── A2A ───────────────────────────────────────────────────────────────────────
-export { sendTask, getTask, cancelTask, type A2AClientConfig } from './a2a/client.js';
+export { sendTask, submitTask, getTask, cancelTask, extractTaskText, type A2AClientConfig, type SendTaskOptions } from './a2a/client.js';
 export { registerEndpoint, type EndpointRegistrationConfig, type EndpointRegistration } from './a2a/registration.js';
 export { startReceiver, type ReceiverOptions } from './a2a/receiver.js';

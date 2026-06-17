@@ -20,7 +20,7 @@ function makeClaudeCodePairResponse(): PairResponse {
       configPath: 'claude-code://mcp/local',
       server: {
         transport: 'streamable_http',
-        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        url: 'https://api.filepad.ai/mcp',
         headers: {
           Authorization: 'Bearer fp_sess_test',
         },
@@ -101,7 +101,7 @@ describe('agent-connect Claude Code pairing boundary', () => {
       });
       expect(JSON.parse(mcpCommands[0]!.args[5]!)).toMatchObject({
         transport: 'streamable_http',
-        url: 'https://api.filepad.ai/mcp/v1/workspaces/ws_test/stream',
+        url: 'https://api.filepad.ai/mcp',
         headers: { Authorization: 'Bearer fp_sess_test' },
       });
 
