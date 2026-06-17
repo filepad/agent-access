@@ -83,9 +83,6 @@ export class FilePad {
   getMailbox(options?: Parameters<FilepadAgentClient['getMailbox']>[0]) {
     return this._client.getMailbox(options);
   }
-  waitForMailbox(options?: Parameters<FilepadAgentClient['waitForMailbox']>[0]) {
-    return this._client.waitForMailbox(options);
-  }
   ackMailbox(ids: string[]) { return this._client.ackMailbox(ids); }
   getSignals(filters?: Parameters<FilepadAgentClient['getSignals']>[0]) {
     return this._client.getSignals(filters);

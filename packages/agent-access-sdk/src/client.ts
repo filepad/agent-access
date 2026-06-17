@@ -218,24 +218,6 @@ export class FilepadAgentClient {
     );
   }
 
-  async waitForMailbox(options?: {
-    limit?: number;
-    unreadOnly?: boolean;
-    cursor?: string;
-    timeoutMs?: number;
-  }): Promise<ListAgentMailboxResponse> {
-    const params = new URLSearchParams();
-    if (options?.limit) params.set('limit', String(options.limit));
-    if (options?.unreadOnly !== undefined) {
-      params.set('unreadOnly', String(options.unreadOnly));
-    }
-    if (options?.cursor) params.set('cursor', options.cursor);
-    if (options?.timeoutMs) params.set('timeoutMs', String(options.timeoutMs));
-    const query = params.toString();
-    return this.http.get<ListAgentMailboxResponse>(
-      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/mailbox/wait${query ? `?${query}` : ''}`,
-    );
-  }
 
   async getSignals(filters?: {
     findingTypeKey?: string | undefined;
