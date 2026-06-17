@@ -1,16 +1,15 @@
 #!/usr/bin/env node
-// FILE MEMO: CLI entrypoint for Filepad pre-MCP runtime pairing.
+// FILE MEMO: CLI entrypoint for OAuth-backed Filepad remote MCP setup.
 
 import {
-  pairAgent,
-  renderPairResult,
+  connectAgent,
+  renderConnectResult,
   SUPPORTED_RUNTIMES,
   type AgentRuntime,
 } from './index.js';
 
 type ParsedArgs = {
-  command: 'pair';
-  code: string;
+  command: 'connect';
   runtime: AgentRuntime;
   baseUrl: string;
   label?: string | undefined;
@@ -31,10 +30,13 @@ function isRuntime(value: string | undefined): value is AgentRuntime {
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const [command, code] = argv;
-  if (command !== 'pair' || !code) {
+  const [command] = argv;
+  if (command === 'pair') {
+    throw new Error('The short-code pair command was removed. Use: filepad-agent-connect connect --runtime <runtime> [--base-url URL]');
+  }
+  if (command !== 'connect') {
     throw new Error(
-      'Usage: filepad-agent-connect pair <CODE> --runtime <runtime> [--base-url URL]\n' +
+      'Usage: filepad-agent-connect connect --runtime <runtime> [--base-url URL]\n' +
       '  [--output json]',
     );
   }
@@ -45,8 +47,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   const output = readFlag(argv, '--output');
 
   return {
-    command: 'pair',
-    code,
+    command: 'connect',
     runtime,
     baseUrl:
       readFlag(argv, '--base-url') ??
@@ -62,11 +63,16 @@ function parseArgs(argv: string[]): ParsedArgs {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const result = await pairAgent(args);
+  const result = await connectAgent({
+    ...args,
+    onAuthorizeUrl: (url) => {
+      process.stderr.write(`Open this URL to authorize Filepad MCP:\n${url}\n`);
+    },
+  });
   if (args.output === 'json') {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
-    process.stdout.write(`${renderPairResult(result)}\n`);
+    process.stdout.write(`${renderConnectResult(result)}\n`);
   }
 }
 

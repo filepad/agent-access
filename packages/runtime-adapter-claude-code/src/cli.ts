@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 import {
-  defaultInstallFromPairingCodeOptions,
   defaultInstallOptions,
   installClaudeCodeRuntime,
-  installClaudeCodeRuntimeFromPairingCode,
 } from './install.js';
 import { doctorClaudeCodeRuntime } from './doctor.js';
 import type { EnforcementMode, OfflinePolicy } from './types.js';
@@ -12,11 +10,9 @@ type ParsedArgs =
   | {
       command: 'install';
       baseUrl: string;
-      workspaceId?: string | undefined;
-      agentKeyId?: string | undefined;
-      agentSecret?: string | undefined;
-      pairCode?: string | undefined;
-      label?: string | undefined;
+      workspaceId: string;
+      agentKeyId: string;
+      agentSecret: string;
       contractId: string;
       repoRoot?: string | undefined;
       settingsPath?: string | undefined;
@@ -57,9 +53,8 @@ function required(value: string | undefined, name: string): string {
 function usage(): string {
   return [
     'Usage:',
-    '  filepad-runtime-adapter-claude-code install --pair-code <code> --contract-id <id> --base-url <url>',
     '  filepad-runtime-adapter-claude-code install --contract-id <id> --workspace-id <id> --agent-key-id <id> --base-url <url>',
-    '    FILEPAD_AGENT_SECRET must be set when --pair-code is not used.',
+    '    FILEPAD_AGENT_SECRET must be set.',
     '  filepad-runtime-adapter-claude-code doctor [--repo-root <path>] [--output json]',
   ].join('\n');
 }
@@ -68,21 +63,12 @@ function parseArgs(argv: string[]): ParsedArgs {
   const [command] = argv;
   const output = readFlag(argv, '--output') === 'json' ? 'json' : 'text';
   if (command === 'install') {
-    const pairCode = readFlag(argv, '--pair-code');
     return {
       command,
       baseUrl: required(readFlag(argv, '--base-url') ?? process.env['FILEPAD_BASE_URL'], '--base-url'),
-      pairCode,
-      label: readFlag(argv, '--label'),
-      workspaceId: pairCode
-        ? readFlag(argv, '--workspace-id') ?? process.env['FILEPAD_WORKSPACE_ID']
-        : required(readFlag(argv, '--workspace-id') ?? process.env['FILEPAD_WORKSPACE_ID'], '--workspace-id'),
-      agentKeyId: pairCode
-        ? readFlag(argv, '--agent-key-id') ?? process.env['FILEPAD_AGENT_KEY_ID']
-        : required(readFlag(argv, '--agent-key-id') ?? process.env['FILEPAD_AGENT_KEY_ID'], '--agent-key-id'),
-      agentSecret: pairCode
-        ? process.env['FILEPAD_AGENT_SECRET']
-        : required(process.env['FILEPAD_AGENT_SECRET'], 'FILEPAD_AGENT_SECRET'),
+      workspaceId: required(readFlag(argv, '--workspace-id') ?? process.env['FILEPAD_WORKSPACE_ID'], '--workspace-id'),
+      agentKeyId: required(readFlag(argv, '--agent-key-id') ?? process.env['FILEPAD_AGENT_KEY_ID'], '--agent-key-id'),
+      agentSecret: required(process.env['FILEPAD_AGENT_SECRET'], 'FILEPAD_AGENT_SECRET'),
       contractId: required(readFlag(argv, '--contract-id') ?? process.env['FILEPAD_ACTIVE_CONTRACT_ID'], '--contract-id'),
       repoRoot: readFlag(argv, '--repo-root'),
       settingsPath: readFlag(argv, '--settings-path'),
@@ -93,11 +79,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     };
   }
   if (command === 'doctor') {
-    return {
-      command,
-      repoRoot: readFlag(argv, '--repo-root'),
-      output,
-    };
+    return { command, repoRoot: readFlag(argv, '--repo-root'), output };
   }
   throw new Error(usage());
 }
@@ -105,17 +87,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.command === 'install') {
-    const result = args.pairCode
-      ? await installClaudeCodeRuntimeFromPairingCode(defaultInstallFromPairingCodeOptions({
-        ...args,
-        pairCode: args.pairCode,
-      }))
-      : await installClaudeCodeRuntime(defaultInstallOptions({
-        ...args,
-        workspaceId: required(args.workspaceId, '--workspace-id'),
-        agentKeyId: required(args.agentKeyId, '--agent-key-id'),
-        agentSecret: required(args.agentSecret, 'FILEPAD_AGENT_SECRET'),
-      }));
+    const result = await installClaudeCodeRuntime(defaultInstallOptions(args));
     if (args.output === 'json') {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       return;

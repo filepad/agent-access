@@ -4,91 +4,52 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 
-import { pairAgent, renderPairResult, type PairResponse } from '../src/index.js';
+import { connectAgent, renderConnectResult } from '../src/index.js';
 
-function makeClaudeCodePairResponse(): PairResponse {
-  return {
-    status: 'paired',
-    workspace: { id: 'ws_test', name: 'Filepad Dev', owner: 'Alex' },
-    credentials: {
-      agentKeyId: 'ik_test',
-      agentSecret: 'secret_once',
-      expiresAt: '2027-01-01T00:00:00.000Z',
-    },
-    hostConfig: {
-      runtime: 'claude-code',
-      configPath: 'claude-code://mcp/local',
-      server: {
-        transport: 'streamable_http',
-        url: 'https://api.filepad.ai/mcp',
-        headers: {
-          Authorization: 'Bearer fp_sess_test',
-        },
-      },
-      restartInstruction: 'Reload Claude Code MCP servers.',
-      desiredState: {
-        version: 1,
-        runtime: 'claude-code',
-        scope: 'project',
-        mcp: {
-          enabled: true,
-          configPath: 'claude-code://mcp/local',
-          configTarget: 'claude.mcp.local.filepad',
-        },
-        hooks: {
-          enabled: true,
-          configPath: './.claude/settings.local.json',
-          credentialsPath: '~/.config/filepad/connections/claude-code/ws_test/ik_test.json',
-          adapterPackage: '@filepad/claude-code-hooks',
-          adapterVersion: '0.1.3',
-          adapterBinary: 'filepad-claude-code-hook',
-          adapterCommand: 'npx -y @filepad/claude-code-hooks@0.1.3',
-          enforcementMode: 'block',
-          offlinePolicy: 'allow',
-          events: ['PreToolUse', 'Stop', 'SessionStart', 'UserPromptSubmit'],
-        },
-      },
-    },
-    handoff: {
-      workspace: { id: 'ws_test', name: 'Filepad Dev', owner: 'Alex' },
-      agent: { keyId: 'ik_test', label: 'Test Agent', scopes: [], status: 'paired' },
-      constitution: { title: 'Test', principles: [], readMoreUrl: null },
-      mailbox: { unread: 0, recent: [] },
-      pendingApprovals: { count: 0, items: [] },
-      recentOutcomes: [],
-      suggestedFirstActions: [],
-      nextStep: {
-        what: 'Reload MCP',
-        how: 'Reload Claude Code MCP servers.',
-        afterRestartCommand: 'filepad_bootstrap',
-      },
-      sessionToken: 'fp_sess_test',
-      text: 'Connected to Filepad workspace: Filepad Dev (Alex)',
-    },
-  };
-}
-
-describe('agent-connect Claude Code pairing boundary', () => {
-  it('registers MCP only and does not install contract hooks from desired host state', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'filepad-agent-connect-claude-code-'));
-    const configPath = join(dir, '.claude', 'settings.json');
-    const outputPath = join(dir, 'pair-result.json');
-    const response = makeClaudeCodePairResponse();
-    response.hostConfig.desiredState!.mcp.configPath = configPath;
-    const mcpCommands: Array<{ command: string; args: string[] }> = [];
-    const fetchImpl: typeof fetch = async () =>
-      new Response(JSON.stringify(response), {
+function makeOAuthFetch(): typeof fetch {
+  return async (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (url === 'https://api.filepad.ai/register') {
+      return new Response(JSON.stringify({ client_id: 'client_test' }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (url === 'https://api.filepad.ai/oauth/token') {
+      expect(String(init?.body)).toContain('code=oauth_code_test');
+      return new Response(JSON.stringify({
+        access_token: 'fp_oauth_test',
+        token_type: 'Bearer',
+        expires_in: 28800,
+        scope: 'env:read notifications:read',
+      }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
+    }
+    throw new Error(`Unexpected fetch ${url}`);
+  };
+}
+
+describe('agent-connect Claude Code OAuth boundary', () => {
+  it('registers MCP only and does not install contract hooks', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'filepad-agent-connect-claude-code-'));
+    const configPath = join(dir, '.claude', 'settings.json');
+    const outputPath = join(dir, 'connect-result.json');
+    const mcpCommands: Array<{ command: string; args: string[] }> = [];
 
     try {
-      const result = await pairAgent({
-        code: 'A3K9',
+      const result = await connectAgent({
         runtime: 'claude-code',
         baseUrl: 'https://api.filepad.ai',
+        configPath,
         outputPath,
-        fetchImpl,
+        redirectUri: 'http://127.0.0.1:7777/callback',
+        fetchImpl: makeOAuthFetch(),
+        authorizationCodeProvider: async ({ authorizationUrl }) => {
+          expect(new URL(authorizationUrl).searchParams.get('resource')).toBe('https://api.filepad.ai/mcp');
+          return 'oauth_code_test';
+        },
         mcpCommandRunner: async (command, args) => {
           mcpCommands.push({ command, args });
         },
@@ -102,14 +63,14 @@ describe('agent-connect Claude Code pairing boundary', () => {
       expect(JSON.parse(mcpCommands[0]!.args[5]!)).toMatchObject({
         transport: 'streamable_http',
         url: 'https://api.filepad.ai/mcp',
-        headers: { Authorization: 'Bearer fp_sess_test' },
+        headers: { Authorization: 'Bearer fp_oauth_test' },
       });
 
       const structured = JSON.parse(await readFile(outputPath, 'utf8')) as typeof result;
       expect(structured.hooksInstalled).toBe(false);
       expect(structured.hooksCredentialsPath).toBeNull();
-      expect(renderPairResult(result)).toContain('Contract verification hooks: not installed by agent-connect.');
-      expect(renderPairResult(result)).toContain('@filepad/runtime-adapter-claude-code');
+      expect(renderConnectResult(result)).toContain('Contract verification hooks: not installed by agent-connect.');
+      expect(renderConnectResult(result)).toContain('@filepad/runtime-adapter-claude-code');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

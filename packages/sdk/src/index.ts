@@ -63,16 +63,6 @@ export type {
   A2AInboundTask,
 } from './core/types.js';
 
-// ── Pairing ───────────────────────────────────────────────────────────────────
-export {
-  pairAgent,
-  renderPairResult,
-  SUPPORTED_RUNTIMES,
-  type AgentRuntime,
-  type PairOptions,
-  type PairResult,
-  type PairResponse,
-} from './cli/commands/connect-impl.js';
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 export { createHookClient } from './hooks/client.js';
@@ -89,7 +79,6 @@ export { runCommand } from './contracts/command-runner.js';
 // ── Install / doctor ──────────────────────────────────────────────────────────
 export {
   installClaudeCodeRuntime,
-  installClaudeCodeRuntimeFromPairingCode,
 } from './install/install.js';
 export { doctorClaudeCodeRuntime } from './install/doctor.js';
 export { buildClaudeCodeHooksConfig, mergeClaudeCodeHooks } from './install/claude-settings.js';

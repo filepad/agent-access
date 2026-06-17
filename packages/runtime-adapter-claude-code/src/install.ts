@@ -3,7 +3,6 @@ import { join, resolve } from 'node:path';
 import { CLAUDE_CODE_HOOK_EVENTS, mergeClaudeCodeHooks } from './claude-settings.js';
 import { expandHome, looksLikeGitRepo, resolveFrom, writeJsonFile } from './files.js';
 import type {
-  InstallFromPairingCodeOptions,
   InstallOptions,
   InstallResult,
   RuntimeManifest,
@@ -147,80 +146,6 @@ export async function installClaudeCodeRuntime(options: InstallOptions): Promise
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-async function exchangePairingCode(params: {
-  baseUrl: string;
-  pairCode: string;
-  label?: string | undefined;
-  fetchImpl?: typeof fetch | undefined;
-}): Promise<{
-  workspaceId: string;
-  agentKeyId: string;
-  agentSecret: string;
-}> {
-  const fetchImpl = params.fetchImpl ?? fetch;
-  const baseUrl = params.baseUrl.replace(/\/+$/g, '');
-  const response = await fetchImpl(`${baseUrl}/agent-api/v1/pair`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      code: params.pairCode,
-      runtime: 'claude-code',
-      ...(params.label ? { label: params.label } : {}),
-    }),
-  });
-  const text = await response.text();
-  let parsed: unknown;
-  try {
-    parsed = text ? JSON.parse(text) : {};
-  } catch {
-    throw new Error(`Pairing failed with HTTP ${response.status}: ${text}`);
-  }
-  if (!response.ok) {
-    const err = isRecord(parsed) && isRecord(parsed['error']) ? parsed['error'] : undefined;
-    const code = typeof err?.['code'] === 'string' ? err['code'] : `HTTP_${response.status}`;
-    const message = typeof err?.['message'] === 'string'
-      ? err['message']
-      : `Filepad pairing failed with HTTP ${response.status}`;
-    throw new Error(`${code}: ${message}`);
-  }
-  if (!isRecord(parsed) || !isRecord(parsed['workspace']) || !isRecord(parsed['credentials'])) {
-    throw new Error('Pairing response missing workspace or credentials');
-  }
-  const workspaceId = parsed['workspace']['id'];
-  const agentKeyId = parsed['credentials']['agentKeyId'];
-  const agentSecret = parsed['credentials']['agentSecret'];
-  if (
-    typeof workspaceId !== 'string' ||
-    typeof agentKeyId !== 'string' ||
-    typeof agentSecret !== 'string'
-  ) {
-    throw new Error('Pairing response contains invalid Claude Code runtime credentials');
-  }
-  return { workspaceId, agentKeyId, agentSecret };
-}
-
-export async function installClaudeCodeRuntimeFromPairingCode(
-  options: InstallFromPairingCodeOptions,
-): Promise<InstallResult> {
-  if (!options.pairCode) throw new Error('Missing pairCode');
-  const credentials = await exchangePairingCode({
-    baseUrl: options.baseUrl,
-    pairCode: options.pairCode,
-    label: options.label,
-    fetchImpl: options.fetchImpl,
-  });
-  return installClaudeCodeRuntime({
-    ...options,
-    workspaceId: credentials.workspaceId,
-    agentKeyId: credentials.agentKeyId,
-    agentSecret: credentials.agentSecret,
-  });
-}
-
 export function defaultInstallOptions(input: {
   baseUrl: string;
   workspaceId: string;
@@ -248,35 +173,5 @@ export function defaultInstallOptions(input: {
     offlinePolicy: input.offlinePolicy ?? 'allow',
     hookPackageVersion: input.hookPackageVersion ?? DEFAULT_HOOKS_VERSION,
     guardianPackageVersion: input.guardianPackageVersion ?? DEFAULT_GUARDIAN_VERSION,
-  };
-}
-
-export function defaultInstallFromPairingCodeOptions(input: {
-  baseUrl: string;
-  pairCode: string;
-  label?: string | undefined;
-  contractId: string;
-  repoRoot?: string | undefined;
-  settingsPath?: string | undefined;
-  credentialsPath?: string | undefined;
-  enforcementMode?: InstallOptions['enforcementMode'] | undefined;
-  offlinePolicy?: InstallOptions['offlinePolicy'] | undefined;
-  hookPackageVersion?: string | undefined;
-  guardianPackageVersion?: string | undefined;
-  fetchImpl?: typeof fetch | undefined;
-}): InstallFromPairingCodeOptions {
-  return {
-    baseUrl: input.baseUrl,
-    pairCode: input.pairCode,
-    label: input.label,
-    contractId: input.contractId,
-    repoRoot: input.repoRoot ?? process.cwd(),
-    settingsPath: input.settingsPath,
-    credentialsPath: input.credentialsPath,
-    enforcementMode: input.enforcementMode ?? 'block',
-    offlinePolicy: input.offlinePolicy ?? 'allow',
-    hookPackageVersion: input.hookPackageVersion ?? DEFAULT_HOOKS_VERSION,
-    guardianPackageVersion: input.guardianPackageVersion ?? DEFAULT_GUARDIAN_VERSION,
-    fetchImpl: input.fetchImpl,
   };
 }

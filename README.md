@@ -1,6 +1,6 @@
 # Filepad Agent Access
 
-Public SDK and remote MCP pairing packages for connecting external AI agents to Filepad workspaces.
+Public SDK and OAuth remote MCP setup packages for connecting external AI agents to Filepad workspaces.
 
 ## Packages
 
@@ -16,7 +16,7 @@ Public SDK and remote MCP pairing packages for connecting external AI agents to 
 
 ```bash
 npm install @filepad/agent-access-sdk
-npx -y @filepad/agent-connect@latest pair ABC123 --runtime openclaw
+npx -y @filepad/agent-connect@latest connect --runtime openclaw
 npx -y @filepad/runtime-adapter-claude-code@latest doctor
 ```
 
@@ -31,7 +31,7 @@ pnpm validate:agent-access
 
 See [docs/agent-access/connect-external-agent.md](./docs/agent-access/connect-external-agent.md).
 
-First prompt after pairing the remote MCP endpoint:
+First prompt after connecting the remote MCP endpoint:
 
 ```text
 Use Filepad now. Call filepad_bootstrap first, read the bootstrap response, then tell me what you can do and what you recommend doing first.

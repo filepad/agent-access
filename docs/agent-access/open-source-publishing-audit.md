@@ -1,6 +1,6 @@
 # Open Source Publishing Audit
 
-The public release contains the SDK, pairing CLI, MCP server, Claude Code hook
+The public release contains the SDK, OAuth MCP setup CLI, Claude Code hook
 adapter, Guardian, Claude Code runtime adapter, public docs, CI scripts, and
 release scripts. It excludes hosted application source, backend source,
 frontend source, private contracts, deployment configuration, and local bridge

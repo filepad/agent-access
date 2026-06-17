@@ -3,7 +3,7 @@
 The public Agent Access boundary contains:
 
 - `@filepad/agent-access-sdk`: typed HTTP client and remote MCP helper.
-- `@filepad/agent-connect`: pairing CLI that writes remote endpoint config.
+- `@filepad/agent-connect`: OAuth CLI that writes remote MCP endpoint config.
 - `@filepad/claude-code-hooks`: Claude Code local enforcement adapter.
 - `@filepad/guardian`: local repo-runtime evidence reporter.
 - `@filepad/runtime-adapter-claude-code`: Claude Code contract verification

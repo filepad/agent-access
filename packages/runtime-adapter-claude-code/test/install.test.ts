@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 import {
   CLAUDE_CODE_HOOK_EVENTS,
   doctorClaudeCodeRuntime,
-  installClaudeCodeRuntimeFromPairingCode,
   installClaudeCodeRuntime,
   type RuntimeManifest,
 } from '../src/index.js';
@@ -174,74 +173,4 @@ describe('installClaudeCodeRuntime', () => {
     }
   });
 
-  it('can exchange a pairing code and install without exposing a manual secret flag', async () => {
-    const repoRoot = await makeRepo();
-    const home = await mkdtemp(join(tmpdir(), 'filepad-runtime-adapter-home-'));
-    const originalHome = process.env['HOME'];
-    process.env['HOME'] = home;
-    const requests: Array<{ url: string; body: unknown }> = [];
-    const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
-      requests.push({
-        url: String(url),
-        body: init?.body ? JSON.parse(String(init.body)) : null,
-      });
-      return {
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify({
-          status: 'paired',
-          workspace: { id: 'ws_pair', name: 'Workspace', owner: 'Owner' },
-          credentials: {
-            agentKeyId: 'ik_pair',
-            agentSecret: 'secret_from_pair',
-            expiresAt: '2026-05-16T12:00:00.000Z',
-          },
-          hostConfig: {},
-          handoff: {},
-        }),
-      } as Response;
-    }) as typeof fetch;
-
-    try {
-      const result = await installClaudeCodeRuntimeFromPairingCode({
-        baseUrl: 'https://api.filepad.ai/',
-        pairCode: 'PAIR1234',
-        label: 'Claude Code contract verifier',
-        contractId: 'ac_pair',
-        repoRoot,
-        enforcementMode: 'block',
-        offlinePolicy: 'allow',
-        hookPackageVersion: '0.1.3',
-        guardianPackageVersion: '0.1.1',
-        fetchImpl,
-      });
-
-      expect(requests).toEqual([{
-        url: 'https://api.filepad.ai/agent-api/v1/pair',
-        body: {
-          code: 'PAIR1234',
-          runtime: 'claude-code',
-          label: 'Claude Code contract verifier',
-        },
-      }]);
-      const credentials = JSON.parse(await readFile(result.credentialsPath, 'utf8')) as {
-        workspaceId: string;
-        keyId: string;
-        secret: string;
-        activeContractId: string;
-      };
-      expect(credentials).toMatchObject({
-        workspaceId: 'ws_pair',
-        keyId: 'ik_pair',
-        secret: 'secret_from_pair',
-        activeContractId: 'ac_pair',
-      });
-      await expect(doctorClaudeCodeRuntime(repoRoot)).resolves.toMatchObject({ ok: true });
-    } finally {
-      if (originalHome !== undefined) process.env['HOME'] = originalHome;
-      else delete process.env['HOME'];
-      await rm(repoRoot, { recursive: true, force: true });
-      await rm(home, { recursive: true, force: true });
-    }
-  });
 });

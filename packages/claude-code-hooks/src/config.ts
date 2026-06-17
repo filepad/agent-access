@@ -68,7 +68,7 @@ export async function resolveCredentials(): Promise<HookCredentials> {
     throw new Error(
       `Filepad hook credentials not found.\n` +
       `Set FILEPAD_BASE_URL, FILEPAD_WORKSPACE_ID, FILEPAD_AGENT_KEY_ID, FILEPAD_AGENT_SECRET\n` +
-      `or pair with: npx -y @filepad/agent-connect@latest pair <CODE> --runtime claude-code`,
+      `or connect MCP with: npx -y @filepad/agent-connect@latest connect --runtime claude-code`,
     );
   }
 

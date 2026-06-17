@@ -15,7 +15,7 @@ Please include:
 - reproduction steps
 - expected impact
 
-Do not open a public issue for vulnerabilities involving pairing codes, generated credentials, MCP config writes, request signing, secrets, or workspace data exposure.
+Do not open a public issue for vulnerabilities involving OAuth authorization codes, generated credentials, MCP config writes, request signing, secrets, or workspace data exposure.
 
 ## Secret Handling
 

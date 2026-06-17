@@ -1,9 +1,9 @@
 # Testing External Agents
 
-Use pairing to generate a remote MCP endpoint, reload the runtime, and call
+Use OAuth setup to configure the remote MCP endpoint, reload the runtime, and call
 `filepad_bootstrap`. A valid proof shows:
 
-- pairing code was exchanged successfully
+- OAuth authorization code was exchanged successfully
 - remote MCP endpoint was written to the runtime
 - runtime can list Filepad tools after reload
 - `filepad_bootstrap` returns workspace context and active contracts
