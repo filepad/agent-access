@@ -142,8 +142,8 @@ Returns all visible files and folders.
 #### `getFile(fileNodeId)`
 Reads a file by its node id.
 
-#### `getPrompts()` / `getMcpPrompts()` / `getMcpResources()`
-Discover skills and resources.
+#### `getPrompts()`
+Discover Agent API prompts. Official MCP discovery uses the remote `/mcp` transport endpoint, not Agent API REST helpers.
 
 #### `search(query, options?)`
 Search indexed workspace context.

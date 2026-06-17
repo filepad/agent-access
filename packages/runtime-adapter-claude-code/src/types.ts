@@ -17,14 +17,6 @@ export type InstallOptions = {
   now?: Date | undefined;
 };
 
-export type InstallFromPairingCodeOptions = Omit<
-  InstallOptions,
-  'workspaceId' | 'agentKeyId' | 'agentSecret'
-> & {
-  pairCode: string;
-  label?: string | undefined;
-  fetchImpl?: typeof fetch | undefined;
-};
 
 export type RuntimeManifest = {
   schemaVersion: 1;

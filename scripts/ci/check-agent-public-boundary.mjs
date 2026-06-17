@@ -6,7 +6,6 @@
  * open-source/package boundary for:
  * - packages/agent-access-sdk
  * - packages/agent-connect
- * - packages/mcp-server
  * - packages/claude-code-hooks
  * - packages/guardian
  * - packages/runtime-adapter-claude-code
@@ -21,7 +20,6 @@ const ROOT = process.cwd();
 const PUBLIC_PACKAGES = [
   'packages/agent-access-sdk',
   'packages/agent-connect',
-  'packages/mcp-server',
   'packages/claude-code-hooks',
   'packages/guardian',
   'packages/runtime-adapter-claude-code',

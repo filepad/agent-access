@@ -37,7 +37,6 @@ function packPackage(packagePath) {
 log('Building public packages...');
 run('pnpm -C packages/agent-access-sdk build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/claude-code-hooks build', { cwd: MONOREPO_ROOT });
-run('pnpm -C packages/mcp-server build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/agent-connect build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/guardian build', { cwd: MONOREPO_ROOT });
 run('pnpm -C packages/runtime-adapter-claude-code build', { cwd: MONOREPO_ROOT });
@@ -46,7 +45,6 @@ log('Packing public packages...');
 const tarballs = [
   packPackage('packages/agent-access-sdk'),
   packPackage('packages/claude-code-hooks'),
-  packPackage('packages/mcp-server'),
   packPackage('packages/agent-connect'),
   packPackage('packages/guardian'),
   packPackage('packages/runtime-adapter-claude-code'),
@@ -64,7 +62,6 @@ try {
 
   const agentConnectBin = join(tmpDir, 'node_modules/.bin/filepad-agent-connect');
   const claudeHooksBin = join(tmpDir, 'node_modules/.bin/filepad-claude-code-hook');
-  const mcpServerBin = join(tmpDir, 'node_modules/.bin/filepad-mcp-server');
   const guardianBin = join(tmpDir, 'node_modules/.bin/filepad-guardian');
   const claudeRuntimeAdapterBin = join(tmpDir, 'node_modules/.bin/filepad-runtime-adapter-claude-code');
   if (!existsSync(agentConnectBin)) {
@@ -72,9 +69,6 @@ try {
   }
   if (!existsSync(claudeHooksBin)) {
     fatal('filepad-claude-code-hook binary not found in node_modules/.bin');
-  }
-  if (!existsSync(mcpServerBin)) {
-    fatal('filepad-mcp-server binary not found in node_modules/.bin');
   }
   if (!existsSync(guardianBin)) {
     fatal('filepad-guardian binary not found in node_modules/.bin');
@@ -108,19 +102,6 @@ try {
     }
   }
 
-  log('Testing MCP server missing credentials...');
-  try {
-    run(`"${mcpServerBin}" --health`, {
-      cwd: tmpDir,
-      env: { PATH: process.env.PATH },
-    });
-    fatal('Expected MCP server health check to fail without credentials');
-  } catch (error) {
-    const output = error.stderr || error.stdout || '';
-    if (!output.includes('Filepad MCP Server startup failed')) {
-      fatal(`Unexpected MCP server output:\n${output}`);
-    }
-  }
 
   log('Testing Guardian help...');
   const guardianHelp = run(`"${guardianBin}" --help`, { cwd: tmpDir });
@@ -144,7 +125,6 @@ try {
   log('Public packages install cleanly outside the monorepo');
   log('Agent Connect CLI is executable');
   log('Claude Code hook adapter CLI is executable');
-  log('MCP server CLI is executable');
   log('Guardian CLI is executable');
   log('Claude Code runtime adapter CLI is executable');
 } catch (error) {

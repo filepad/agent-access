@@ -63,16 +63,6 @@ export type {
   A2AInboundTask,
 } from './core/types.js';
 
-// ── Pairing ───────────────────────────────────────────────────────────────────
-export {
-  pairAgent,
-  renderPairResult,
-  SUPPORTED_RUNTIMES,
-  type AgentRuntime,
-  type PairOptions,
-  type PairResult,
-  type PairResponse,
-} from './cli/commands/connect-impl.js';
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 export { createHookClient } from './hooks/client.js';
@@ -89,12 +79,11 @@ export { runCommand } from './contracts/command-runner.js';
 // ── Install / doctor ──────────────────────────────────────────────────────────
 export {
   installClaudeCodeRuntime,
-  installClaudeCodeRuntimeFromPairingCode,
 } from './install/install.js';
 export { doctorClaudeCodeRuntime } from './install/doctor.js';
 export { buildClaudeCodeHooksConfig, mergeClaudeCodeHooks } from './install/claude-settings.js';
 
 // ── A2A ───────────────────────────────────────────────────────────────────────
-export { sendTask, getTask, cancelTask, type A2AClientConfig } from './a2a/client.js';
+export { sendTask, submitTask, getTask, cancelTask, extractTaskText, type A2AClientConfig, type SendTaskOptions } from './a2a/client.js';
 export { registerEndpoint, type EndpointRegistrationConfig, type EndpointRegistration } from './a2a/registration.js';
 export { startReceiver, type ReceiverOptions } from './a2a/receiver.js';

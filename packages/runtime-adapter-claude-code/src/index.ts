@@ -1,10 +1,8 @@
 export {
   defaultInstallOptions,
-  defaultInstallFromPairingCodeOptions,
   defaultCredentialsPath,
   defaultSettingsPath,
   installClaudeCodeRuntime,
-  installClaudeCodeRuntimeFromPairingCode,
   manifestPath,
 } from './install.js';
 export { doctorClaudeCodeRuntime } from './doctor.js';
@@ -18,7 +16,6 @@ export type {
   DoctorCheck,
   DoctorResult,
   EnforcementMode,
-  InstallFromPairingCodeOptions,
   InstallOptions,
   InstallResult,
   OfflinePolicy,

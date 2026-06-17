@@ -1,12 +1,12 @@
 # @filepad/agent-connect
 
-Remote MCP pairing CLI for Filepad Agent Access.
+OAuth remote MCP setup CLI for Filepad Agent Access.
 
 ```bash
-npx -y @filepad/agent-connect@latest pair A3K9MZ2X --runtime openclaw
+npx -y @filepad/agent-connect@latest connect --runtime openclaw
 ```
 
-The command exchanges a short Filepad pairing code, writes the runtime's remote
+The command opens Filepad OAuth consent, obtains a resource-bound `/mcp` bearer token, writes the runtime's remote
 MCP endpoint configuration, prints a concise handoff for the current agent
 session, and instructs the host to restart/reload MCP. After restart, call
 `filepad_bootstrap`.
@@ -14,9 +14,9 @@ session, and instructs the host to restart/reload MCP. After restart, call
 This package does not install contract verification hooks. Claude Code contract
 verification is owned by `@filepad/runtime-adapter-claude-code`.
 
-That restart/reload message is an expected success state, not a pairing
+That restart/reload message is an expected success state, not a connection
 failure. Some runtimes, including Codex, load MCP tools only when a session
-starts; the CLI therefore reports `paired=true`, `configWritten=true`,
+starts; the CLI therefore reports `connected=true`, `configWritten=true`,
 `nativeToolsAvailable=false`, and `requiresHostRestart=true` so agents can
 calmly ask the user to restart before continuing.
 
@@ -28,13 +28,11 @@ The handoff also prints agent-facing probes:
 
 - public health: `/agent-api/v1/health`
 - public discovery: `/agent-api/v1/discovery`
-- authenticated HTTP bootstrap fallback:
-  `/agent-api/v1/workspaces/{workspaceId}/bootstrap`
 - remote MCP stream:
-  `/mcp/v1/workspaces/{workspaceId}/stream`
+  `/mcp`
 
 Use `--output json` for automation:
 
 ```bash
-npx -y @filepad/agent-connect@latest pair A3K9MZ2X --runtime openclaw --output json
+npx -y @filepad/agent-connect@latest connect --runtime openclaw --output json
 ```

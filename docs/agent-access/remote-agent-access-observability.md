@@ -2,7 +2,7 @@
 
 Remote MCP production readiness requires visibility into:
 
-- pairing-code creation, exchange, expiry, and rejection
+- OAuth client registration, authorization-code exchange, expiry, and rejection
 - remote MCP initialize, tools/list, and tools/call traffic
 - authentication failures and revoked credential attempts
 - per-workspace rate and concurrency limits

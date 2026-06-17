@@ -1,7 +1,7 @@
 {
   "name": "@filepad/sdk",
   "version": "0.1.0",
-  "description": "Official SDK for connecting agents to Filepad — MCP server, contract hooks, A2A client, and CLI.",
+  "description": "Official SDK for connecting agents to Filepad through Agent API, remote MCP, contract hooks, A2A client, and CLI.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

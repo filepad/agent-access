@@ -9,8 +9,6 @@ import type {
   GetAgentApiEnvironmentResponse,
   GetAgentApiFileTreeResponse,
   GetAgentApiPromptsResponse,
-  GetMcpPromptsResponse,
-  GetMcpResourcesResponse,
   SearchAgentApiWorkspaceRequest,
   SearchAgentApiWorkspaceResponse,
   GetAgentApiFileResponse,
@@ -137,17 +135,6 @@ export class FilepadAgentClient {
     );
   }
 
-  async getMcpPrompts(): Promise<GetMcpPromptsResponse> {
-    return this.http.get<GetMcpPromptsResponse>(
-      `/mcp/v1/workspaces/${encodeURIComponent(this.workspaceId)}/prompts`,
-    );
-  }
-
-  async getMcpResources(): Promise<GetMcpResourcesResponse> {
-    return this.http.get<GetMcpResourcesResponse>(
-      `/mcp/v1/workspaces/${encodeURIComponent(this.workspaceId)}/resources`,
-    );
-  }
 
   async listTools(): Promise<ListAgentToolsResponse> {
     return this.http.get<ListAgentToolsResponse>(
@@ -231,24 +218,6 @@ export class FilepadAgentClient {
     );
   }
 
-  async waitForMailbox(options?: {
-    limit?: number;
-    unreadOnly?: boolean;
-    cursor?: string;
-    timeoutMs?: number;
-  }): Promise<ListAgentMailboxResponse> {
-    const params = new URLSearchParams();
-    if (options?.limit) params.set('limit', String(options.limit));
-    if (options?.unreadOnly !== undefined) {
-      params.set('unreadOnly', String(options.unreadOnly));
-    }
-    if (options?.cursor) params.set('cursor', options.cursor);
-    if (options?.timeoutMs) params.set('timeoutMs', String(options.timeoutMs));
-    const query = params.toString();
-    return this.http.get<ListAgentMailboxResponse>(
-      `/agent-api/v1/workspaces/${encodeURIComponent(this.workspaceId)}/mailbox/wait${query ? `?${query}` : ''}`,
-    );
-  }
 
   async getSignals(filters?: {
     findingTypeKey?: string | undefined;
